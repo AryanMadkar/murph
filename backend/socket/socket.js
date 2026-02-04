@@ -62,19 +62,23 @@ const setupSocket = (server) => {
       });
     });
 
-    // Relay WebRTC Offer
-    socket.on("offer", (payload) => {
-      socket.to(payload.roomId).emit("offer", payload);
+    socket.on("offer", ({ roomId, sdp, caller }) => {
+      socket.to(roomId).emit("offer", { sdp, caller, roomId });
     });
 
-    // Relay WebRTC Answer
-    socket.on("answer", (payload) => {
-      socket.to(payload.roomId).emit("answer", payload);
+    socket.on("answer", ({ roomId, sdp, caller }) => {
+      socket.to(roomId).emit("answer", { sdp, caller });
     });
 
-    // Relay ICE Candidate
-    socket.on("ice-candidate", (payload) => {
-      socket.to(payload.roomId).emit("ice-candidate", payload);
+    socket.on("ice-candidate", ({ roomId, candidate }) => {
+      socket.to(roomId).emit("ice-candidate", { candidate });
+    });
+
+    // Chat Message Relay
+    socket.on("send-message", (payload) => {
+      const { roomId } = payload;
+
+      socket.to(roomId).emit("receive-message", payload);
     });
   });
 

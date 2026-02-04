@@ -1,20 +1,33 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Register from "./pages/Register";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Home from "./components/Home";
+
+// Core Pages
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import VideoCall from "./pages/VideoCall";
+import Wallet from "./pages/Wallet";
 
+/**
+ * DEV NOTE: This routing configuration includes the new Humble Home design (/)
+ * along with the legacy system pages (Login, Dashboards, etc.) for the wider team.
+ * All styling in the components directory is now strictly powered by Tailwind CSS.
+ */
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/register" />} />
-        <Route path="/register" element={<Register />} />
+        {/* Main Landing Page*/}
+        <Route path="/" element={<Home />} />
+
+        {/* Legacy System / Dashboard Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/student" element={<StudentDashboard />} />
-        <Route path="/teacher" element={<TeacherDashboard />} />
-        <Route path="/call/:roomId" element={<VideoCall />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/student-dashboard" element={<StudentDashboard />} />
+        <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+        <Route path="/video-call/:roomId" element={<VideoCall />} />
+        <Route path="/wallet" element={<Wallet />} />
       </Routes>
     </BrowserRouter>
   );

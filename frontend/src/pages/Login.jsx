@@ -32,7 +32,6 @@ export default function Login() {
     setLoading(true);
     setMessage("");
 
-    // Stop camera before processing
     const stream = videoRef.current.srcObject;
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
@@ -58,7 +57,7 @@ export default function Login() {
           localStorage.setItem("token", response.data.token);
           const role = response.data.user.role;
           setTimeout(() => {
-            navigate(role === "teacher" ? "/teacher" : "/student");
+            navigate(role === "teacher" ? "/teacher-dashboard" : "/student-dashboard");
           }, 1000);
         }
       } catch (err) {
@@ -70,85 +69,59 @@ export default function Login() {
   };
 
   return (
-    <div
-      style={{
-        padding: "40px",
-        maxWidth: "500px",
-        margin: "0 auto",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h1>Login</h1>
+    <div className="p-10 max-w-md mx-auto font-sans">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Login</h1>
 
-      <div style={{ marginBottom: "20px" }}>
+      <div className="mb-5">
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{ width: "100%", padding: "10px", fontSize: "16px" }}
+          className="w-full p-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
-      <div style={{ marginBottom: "20px" }}>
+      <div className="mb-5">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          style={{
-            width: "100%",
-            background: "#000",
-            borderRadius: "8px",
-            transform: "scaleX(-1)",
-          }}
+          className="w-full bg-black rounded-lg scale-x-[-1]"
         />
-        <canvas ref={canvasRef} style={{ display: "none" }} />
+        <canvas ref={canvasRef} className="hidden" />
       </div>
 
       {loading ? (
         <button
           disabled
-          style={{
-            padding: "15px 30px",
-            fontSize: "16px",
-            cursor: "not-allowed",
-            background: "#ccc",
-            color: "#666",
-            border: "none",
-          }}
+          className="px-8 py-4 text-base cursor-not-allowed bg-gray-300 text-gray-500 rounded-lg"
         >
           ⏳ Verifying...
         </button>
       ) : !cameraActive ? (
         <button
           onClick={startCamera}
-          style={{ padding: "15px 30px", fontSize: "16px", cursor: "pointer" }}
+          className="px-8 py-4 text-base cursor-pointer bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-300 transition-colors"
         >
           📷 Start Camera
         </button>
       ) : (
         <button
           onClick={captureAndLogin}
-          style={{
-            padding: "15px 30px",
-            fontSize: "16px",
-            cursor: "pointer",
-            background: "#2196F3",
-            color: "#fff",
-            border: "none",
-          }}
+          className="px-8 py-4 text-base cursor-pointer bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
         >
           🔐 Login with Face
         </button>
       )}
 
       {message && (
-        <p style={{ marginTop: "20px", fontWeight: "bold" }}>{message}</p>
+        <p className="mt-5 font-bold text-gray-800">{message}</p>
       )}
 
-      <p style={{ marginTop: "30px" }}>
-        New user? <a href="/register">Register here</a>
+      <p className="mt-8 text-gray-600">
+        New user? <a href="/register" className="text-blue-500 hover:underline">Register here</a>
       </p>
     </div>
   );

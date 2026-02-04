@@ -6,6 +6,8 @@ const {
   acceptMeeting,
   declineMeeting,
   getTeachers,
+  getWalletBalance,
+  addMoney,
 } = require("../controller/meeting.controllers");
 
 // Get all teachers (for student dashboard)

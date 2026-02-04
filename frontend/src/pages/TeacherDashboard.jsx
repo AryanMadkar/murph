@@ -15,21 +15,26 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
-    if (!userData) {
+    let parsedUser = null;
+    try {
+      if (userData && userData !== "undefined") {
+        parsedUser = JSON.parse(userData);
+      }
+    } catch (e) {
+      console.error("Error parsing user data:", e);
+    }
+
+    if (!parsedUser || !parsedUser.id) {
       navigate("/login");
       return;
     }
-    const parsedUser = JSON.parse(userData);
     setUser(parsedUser);
 
-    // Register with socket
     socket.emit("register-user", parsedUser.id);
 
-    // Fetch pending requests
     fetchRequests(parsedUser.id);
 
-    // Listen for new meeting requests
-    socket.on("new-meeting-request", ({ studentEmail, meetingId }) => {
+    socket.on("new-meeting-request", ({ studentEmail }) => {
       setMessage(`🔔 New meeting request from ${studentEmail}`);
       fetchRequests(parsedUser.id);
     });
@@ -61,14 +66,12 @@ export default function TeacherDashboard() {
       if (res.data.success) {
         setMessage("✅ Meeting accepted! Starting call...");
 
-        // Notify student via socket
         socket.emit("meeting-accepted", {
           studentId,
           roomId: res.data.roomId,
         });
 
-        // Navigate to video call
-        setTimeout(() => navigate(`/call/${res.data.roomId}`), 1000);
+        setTimeout(() => navigate(`/video-call/${res.data.roomId}`), 1000);
       }
     } catch (err) {
       setMessage("❌ " + (err.response?.data?.message || err.message));
@@ -82,61 +85,45 @@ export default function TeacherDashboard() {
   };
 
   return (
-    <div style={{ padding: "40px", fontFamily: "sans-serif" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <h1>Teacher Dashboard</h1>
-        <button
-          onClick={logout}
-          style={{ padding: "10px 20px", cursor: "pointer" }}
-        >
-          Logout
-        </button>
+    <div className="p-10 font-sans min-h-screen bg-gray-50">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
+        <div className="flex gap-4">
+          {/* Wallet Removed */}
+          <button
+            onClick={logout}
+            className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
-      {user && <p>Welcome, {user.email}</p>}
+      {user && <p className="text-gray-600 mb-4">Welcome, {user.email}</p>}
 
-      {message && (
-        <p style={{ fontWeight: "bold", color: "#4CAF50" }}>{message}</p>
-      )}
+      {message && <p className="font-bold text-green-500 mb-4">{message}</p>}
 
-      <h2>Pending Meeting Requests</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        Pending Meeting Requests
+      </h2>
 
       {loading ? (
-        <p>Loading...</p>
+        <p className="text-gray-500">Loading...</p>
       ) : requests.length === 0 ? (
-        <p>No pending requests</p>
+        <p className="text-gray-500">No pending requests</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
+        <ul className="list-none p-0">
           {requests.map((req) => (
             <li
               key={req._id}
-              style={{
-                padding: "15px",
-                marginBottom: "10px",
-                background: "#fff3e0",
-                borderRadius: "8px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
+              className="p-4 mb-3 bg-orange-50 rounded-lg flex justify-between items-center shadow-sm border border-orange-100"
             >
-              <span>📧 Student: {req.studentId?.email || "Unknown"}</span>
+              <span className="text-gray-700">
+                📧 Student: {req.studentId?.email || "Unknown"}
+              </span>
               <button
                 onClick={() => acceptMeeting(req._id, req.studentId?._id)}
-                style={{
-                  padding: "10px 20px",
-                  background: "#2196F3",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
+                className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg cursor-pointer transition-colors"
               >
                 ✅ Accept Meeting
               </button>

@@ -37,25 +37,12 @@ app.add_middleware(
 )
 
 # Configuration
-# Options: VGG-Face, Facenet, Facenet512, OpenFace, DeepFace, DeepID, ArcFace, Dlib, SFace
-# ArcFace and Facenet512 are most accurate for authentication
-FACE_MODEL = os.getenv("FACE_MODEL", "ArcFace")
-
-# Threshold depends on model:
-# - Facenet: ~10.0 (Euclidean), ~0.40 (Cosine)
-# - ArcFace: ~0.68 (Cosine), ~1.13 (Euclidean)
-# - Facenet512: ~0.30 (Cosine)
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.68"))
-
-# MUST enforce detection for accurate face embeddings
-ENFORCE_DETECTION = os.getenv("ENFORCE_DETECTION", "True").lower() == "true"
-
-# Use 'retinaface' for best accuracy, 'opencv' for speed, 'mtcnn' for balance
-# Options: opencv, ssd, dlib, mtcnn, retinaface, mediapipe, yolov8, yunet, fastmtcnn
-DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "retinaface")
-
-# Distance metric: cosine is more robust than euclidean for face matching
-DISTANCE_METRIC = os.getenv("DISTANCE_METRIC", "cosine")
+# Options: VGG-Face, Facenet, OpenFace, DeepFace, DeepID, ArcFace, Dlib
+FACE_MODEL = os.getenv("FACE_MODEL", "Facenet")
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.9"))
+ENFORCE_DETECTION = os.getenv("ENFORCE_DETECTION", "False").lower() == "true"
+# 'skip' avoids detection logic and uses the whole image - very reliable for webcams
+DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "skip")
 
 
 # Pydantic models

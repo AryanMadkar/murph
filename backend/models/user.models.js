@@ -16,6 +16,8 @@ const userSchema = new mongoose.Schema(
       enum: ["teacher", "student"],
       required: true,
     },
+
+    // Legacy field for data migration
     embedding: {
       type: [Number],
       required: true,

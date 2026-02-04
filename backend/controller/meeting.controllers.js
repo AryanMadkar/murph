@@ -76,7 +76,7 @@ const requestMeeting = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Meeting request sent",
+      message: `Meeting request sent.`,
       meeting: newMeeting,
       walletBalance: student.walletBalance / 100,
     });
@@ -146,6 +146,170 @@ const acceptMeeting = async (req, res) => {
     });
   } catch (error) {
     console.error("Accept meeting error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+// Complete meeting (No payment transfer)
+const completeMeeting = async (req, res) => {
+  try {
+    const { meetingId, roomId } = req.body;
+
+    let meeting;
+    if (meetingId) {
+      meeting = await Meeting.findById(meetingId);
+    } else if (roomId) {
+      meeting = await Meeting.findOne({ roomId });
+    }
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found",
+      });
+    }
+
+    if (meeting.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Meeting already completed",
+      });
+    }
+
+    meeting.status = "completed";
+    meeting.completedAt = new Date();
+    await meeting.save();
+
+    res.json({
+      success: true,
+      message: "Session completed.",
+      meeting,
+    });
+  } catch (error) {
+    console.error("Complete meeting error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+// Cancel meeting and refund student
+const cancelMeeting = async (req, res) => {
+  try {
+    const { meetingId } = req.body;
+
+    const meeting = await Meeting.findById(meetingId);
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found",
+      });
+    }
+
+    if (meeting.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot cancel completed meeting",
+      });
+    }
+
+    // Refund student if payment was held
+    if (meeting.paymentStatus === "held") {
+      const student = await User.findById(meeting.studentId);
+      if (student) {
+        student.walletBalance += meeting.amount;
+        await student.save();
+      }
+
+      meeting.paymentStatus = "refunded";
+      meeting.status = "cancelled";
+      await meeting.save();
+
+      res.json({
+        success: true,
+        message: `Meeting cancelled. ₹${meeting.amount} refunded to your wallet.`,
+        meeting,
+      });
+    } else {
+      meeting.status = "cancelled";
+      await meeting.save();
+
+      res.json({
+        success: true,
+        message: "Meeting cancelled",
+        meeting,
+      });
+    }
+  } catch (error) {
+    console.error("Cancel meeting error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+// Get user's wallet balance
+const getWalletBalance = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      balance: user.walletBalance || 0,
+    });
+  } catch (error) {
+    console.error("Get wallet balance error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+// Add money to wallet (for testing/admin)
+const addMoney = async (req, res) => {
+  try {
+    const { userId, amount } = req.body;
+
+    if (!userId || !amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid user ID and positive amount required",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.walletBalance = (user.walletBalance || 0) + amount;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `₹${amount} added to wallet`,
+      newBalance: user.walletBalance,
+    });
+  } catch (error) {
+    console.error("Add money error:", error);
     res.status(500).json({
       success: false,
       message: error.message || "Internal server error",
