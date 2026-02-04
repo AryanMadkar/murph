@@ -26,6 +26,8 @@ app.use("/api", authRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/escrow", escrowRoutes);
+app.use("/api/attention", require("./routes/Attention.routes"));
+app.use("/api/insights", require("./routes/insights.routes"));
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -56,18 +58,19 @@ app.get("/api/users", async (req, res) => {
 app.post("/api/test-login", async (req, res) => {
   const User = require("./models/user.models");
   const jwt = require("jsonwebtoken");
-  const JWT_SECRET = process.env.JWT_SECRET || "murph_secret_key_change_in_production";
-  
+  const JWT_SECRET =
+    process.env.JWT_SECRET || "murph_secret_key_change_in_production";
+
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "7d" });
-    
+
     res.json({
       success: true,
       token,

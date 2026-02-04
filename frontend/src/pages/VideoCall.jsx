@@ -2,7 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import axios from "axios";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Send, X, User } from "lucide-react";
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  PhoneOff,
+  MessageSquare,
+  Send,
+  X,
+  User,
+} from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const AI_SESSION_URL = "http://localhost:8000";
@@ -95,14 +105,18 @@ export default function VideoCall() {
 
       socket.on("offer", async (payload) => {
         createPeerConnection(userId);
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        await peerConnectionRef.current.setRemoteDescription(
+          new RTCSessionDescription(payload.sdp),
+        );
         const answer = await peerConnectionRef.current.createAnswer();
         await peerConnectionRef.current.setLocalDescription(answer);
         socket.emit("answer", { roomId, caller: userId, sdp: answer });
       });
 
       socket.on("answer", async (payload) => {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        await peerConnectionRef.current.setRemoteDescription(
+          new RTCSessionDescription(payload.sdp),
+        );
         setConnected(true);
         setCallStatus("Connected");
       });
@@ -110,7 +124,9 @@ export default function VideoCall() {
       socket.on("ice-candidate", async (payload) => {
         if (peerConnectionRef.current) {
           try {
-            await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            await peerConnectionRef.current.addIceCandidate(
+              new RTCIceCandidate(payload.candidate),
+            );
           } catch (e) {
             console.error("Error adding ICE candidate", e);
           }
@@ -165,14 +181,18 @@ export default function VideoCall() {
       }
 
       pc.ontrack = (event) => {
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
+        if (remoteVideoRef.current)
+          remoteVideoRef.current.srcObject = event.streams[0];
         setConnected(true);
         setCallStatus("Connected");
       };
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
-          socketRef.current.emit("ice-candidate", { roomId, candidate: event.candidate });
+          socketRef.current.emit("ice-candidate", {
+            roomId,
+            candidate: event.candidate,
+          });
         }
       };
     };
@@ -194,6 +214,26 @@ export default function VideoCall() {
       if (socketRef.current) socketRef.current.disconnect();
     };
   }, [roomId, navigate]);
+
+  const toggleMic = () => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setMicOn(audioTrack.enabled);
+      }
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setVideoOn(videoTrack.enabled);
+      }
+    }
+  };
 
   // ================= ATTENTION TRACKING (STUDENT ONLY) =================
   useEffect(() => {
@@ -319,10 +359,10 @@ export default function VideoCall() {
 
   return (
     <div className="flex h-screen bg-black text-white font-['Source_Sans_Pro'] overflow-hidden relative">
-
       {/* Video Grid */}
-      <div className={`flex-1 relative transition-all duration-300 ${showChat ? 'mr-96' : ''}`}>
-
+      <div
+        className={`flex-1 relative transition-all duration-300 ${showChat ? "mr-96" : ""}`}
+      >
         {/* Remote Video (Main) */}
         <div className="absolute inset-0 flex items-center justify-center p-6">
           <div className="relative w-full h-full max-h-[90vh] bg-[#1a1a1a] rounded-3xl overflow-hidden shadow-2xl border border-gray-800">
@@ -348,7 +388,7 @@ export default function VideoCall() {
                 autoPlay
                 playsInline
                 muted
-                className={`w-full h-full object-cover transform scale-x-[-1] ${!videoOn && 'hidden'}`}
+                className={`w-full h-full object-cover transform scale-x-[-1] ${!videoOn && "hidden"}`}
               />
               {!videoOn && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
@@ -356,7 +396,7 @@ export default function VideoCall() {
                 </div>
               )}
               <div className="absolute bottom-2 left-2 bg-black/60 px-2 py-0.5 rounded text-xs font-medium backdrop-blur-sm">
-                You {micOn ? '' : '(Muted)'}
+                You {micOn ? "" : "(Muted)"}
               </div>
             </div>
           </div>
@@ -366,16 +406,24 @@ export default function VideoCall() {
         <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-gray-900/90 backdrop-blur-md px-6 py-4 rounded-3xl border border-white/10 shadow-2xl z-50">
           <button
             onClick={toggleMic}
-            className={`p-4 rounded-full transition-all ${micOn ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+            className={`p-4 rounded-full transition-all ${micOn ? "bg-gray-700 hover:bg-gray-600" : "bg-red-500 hover:bg-red-600 text-white"}`}
           >
-            {micOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+            {micOn ? (
+              <Mic className="h-6 w-6" />
+            ) : (
+              <MicOff className="h-6 w-6" />
+            )}
           </button>
 
           <button
             onClick={toggleVideo}
-            className={`p-4 rounded-full transition-all ${videoOn ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+            className={`p-4 rounded-full transition-all ${videoOn ? "bg-gray-700 hover:bg-gray-600" : "bg-red-500 hover:bg-red-600 text-white"}`}
           >
-            {videoOn ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+            {videoOn ? (
+              <Video className="h-6 w-6" />
+            ) : (
+              <VideoOff className="h-6 w-6" />
+            )}
           </button>
 
           <button
@@ -387,7 +435,7 @@ export default function VideoCall() {
 
           <button
             onClick={() => setShowChat(!showChat)}
-            className={`p-4 rounded-full transition-all relative ${showChat ? 'bg-white text-black' : 'bg-gray-700 hover:bg-gray-600'}`}
+            className={`p-4 rounded-full transition-all relative ${showChat ? "bg-white text-black" : "bg-gray-700 hover:bg-gray-600"}`}
           >
             <MessageSquare className="h-6 w-6" />
             {messages.length > 0 && !showChat && (
@@ -399,11 +447,14 @@ export default function VideoCall() {
 
       {/* Chat Panel (Slide-over) */}
       <div
-        className={`fixed top-0 right-0 h-full w-96 bg-[#0f0f0f] border-l border-gray-800 transform transition-transform duration-300 ease-in-out z-40 flex flex-col ${showChat ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-96 bg-[#0f0f0f] border-l border-gray-800 transform transition-transform duration-300 ease-in-out z-40 flex flex-col ${showChat ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#0f0f0f]">
           <h2 className="font-bold text-lg">Meeting Chat</h2>
-          <button onClick={() => setShowChat(false)} className="text-gray-400 hover:text-white">
+          <button
+            onClick={() => setShowChat(false)}
+            className="text-gray-400 hover:text-white"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -416,20 +467,35 @@ export default function VideoCall() {
             </div>
           )}
           {messages.map((msg, idx) => (
-            <div key={idx} className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}>
-              <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.isMe ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'
-                }`}>
+            <div
+              key={idx}
+              className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}
+            >
+              <div
+                className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                  msg.isMe
+                    ? "bg-blue-600 text-white rounded-tr-none"
+                    : "bg-gray-800 text-gray-200 rounded-tl-none"
+                }`}
+              >
                 {msg.message}
               </div>
               <span className="text-[10px] text-gray-500 mt-1.5 px-1">
-                {msg.isMe ? 'You' : msg.senderName} • {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {msg.isMe ? "You" : msg.senderName} •{" "}
+                {new Date(msg.timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </span>
             </div>
           ))}
           <div ref={messagesEndRef} />
         </div>
 
-        <form onSubmit={sendMessage} className="p-4 border-t border-gray-800 bg-[#0f0f0f]">
+        <form
+          onSubmit={sendMessage}
+          className="p-4 border-t border-gray-800 bg-[#0f0f0f]"
+        >
           <div className="relative">
             <input
               type="text"

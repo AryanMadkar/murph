@@ -17,19 +17,25 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Legacy field for data migration
-    embedding: {
-      type: [Number],
+    // Password for authentication
+    password: {
+      type: String,
       required: true,
     },
-    
+
+    // Legacy field for data migration (Optional now)
+    embedding: {
+      type: [Number],
+      default: [],
+    },
+
     // ⭐ WALLET - Store balance in paise (1 USD = 100 paise/cents)
     walletBalance: {
       type: Number,
       default: 0,
       min: 0,
     },
-    
+
     // Bank account for teacher payouts
     bankAccount: {
       accountId: { type: String, default: null },

@@ -1,7 +1,6 @@
 const User = require("../models/user.models");
-const axios = require("axios");
-const FormData = require("form-data");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 const AI_AUTH_URL = process.env.AI_AUTH_URL || "http://localhost:8000";
 const AI_SERVICE_URL = process.env.AI_AUTH_URL || "http://localhost:8000";
@@ -14,72 +13,55 @@ const generateToken = (userId) => {
 
 const register = async (req, res) => {
   try {
-    const { email, role } = req.body;
+    const { name, email, role, password } = req.body;
 
-    if (!email || !role || !req.file) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing required fields" });
+    if (!name || !email || !role || !password) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    const exists = await User.findOne({ email });
-    if (exists) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User already exists" });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
     }
 
-    // Encode face using AI service
-    const formData = new FormData();
-    formData.append("file", req.file.buffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype,
-    });
-
-    console.log(`Encoding face for registration: ${email}`);
-    const aiRes = await axios.post(`${AI_AUTH_URL}/encode`, formData, {
-      headers: formData.getHeaders(),
-    });
-
-    if (!aiRes.data.success)
-      return res.status(400).json({ message: "Face not detected" });
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const newUser = await User.create({
+      name,
       email,
       role,
-      embedding: aiRes.data.embedding,
-      embedding: aiRes.data.embedding,
+      password: hashedPassword,
     });
 
-    // ✅ Generate JWT token on registration
-    const token = generateToken(newUser._id);
+    const token = signToken(newUser._id);
 
     res.status(201).json({
-      success: true,
-      message: "Registration successful",
+      status: "success",
       token,
-      user: {
-        email: newUser.email,
-        role: newUser.role,
-        id: newUser._id,
-        walletBalance: (newUser.walletBalance || 0) / 100,
+      data: {
+        user: newUser,
       },
     });
-  } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res
+      .status(500)
+      .json({ message: "Registration failed", error: error.message });
   }
 };
 
 const login = async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email || !req.file) {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
       return res
         .status(400)
-        .json({ success: false, message: "Email and image are required" });
+        .json({ message: "Please provide email and password" });
     }
 
+    // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
       return res

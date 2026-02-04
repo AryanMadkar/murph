@@ -15,7 +15,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Main Landing Page*/}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home />} /> 
 
         {/* Legacy System / Dashboard Routes */}
         <Route path="/login" element={<Login />} />
