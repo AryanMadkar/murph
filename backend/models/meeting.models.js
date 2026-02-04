@@ -14,7 +14,14 @@ const meetingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "accepted", "declined", "completed", "cancelled"],
+      enum: [
+        "pending",
+        "accepted",
+        "active",
+        "declined",
+        "completed",
+        "cancelled",
+      ],
       default: "pending",
     },
     roomId: {

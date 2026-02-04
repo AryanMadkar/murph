@@ -1,6 +1,7 @@
 const Meeting = require("../models/meeting.models");
 const User = require("../models/user.models");
 const WalletTransaction = require("../models/walletTransaction.models");
+const AttentionSession = require("../models/Attentionsession.models");
 const { v4: uuidv4 } = require("uuid");
 
 // Session pricing (in cents)
@@ -55,8 +56,8 @@ const requestMeeting = async (req, res) => {
     await student.save();
 
     // Calculate fees
-    const platformFee = Math.round(SESSION_PRICE_CENTS * 0.10); // 10% platform fee
-    const teacherEarning = SESSION_PRICE_CENTS - platformFee;   // 90% to teacher
+    const platformFee = Math.round(SESSION_PRICE_CENTS * 0.1); // 10% platform fee
+    const teacherEarning = SESSION_PRICE_CENTS - platformFee; // 90% to teacher
 
     const newMeeting = new Meeting({
       studentId,
@@ -91,7 +92,7 @@ const requestMeeting = async (req, res) => {
         amount: SESSION_PRICE_CENTS / 100,
         platformFee: platformFee / 100,
         teacherWillReceive: teacherEarning / 100,
-      }
+      },
     });
   } catch (error) {
     console.error("Request meeting error:", error);
@@ -207,6 +208,70 @@ const acceptMeeting = async (req, res) => {
   }
 };
 
+// Start meeting when video call begins
+const startMeeting = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    const meeting = await Meeting.findOne({ roomId });
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found",
+      });
+    }
+
+    if (meeting.status === "completed" || meeting.status === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: `Meeting is already ${meeting.status}`,
+      });
+    }
+
+    // Set start time and change status to active
+    if (!meeting.startedAt) {
+      meeting.startedAt = new Date();
+    }
+    meeting.status = "active";
+    await meeting.save();
+
+    // ⭐ Initialize Attention Session automatically
+    let attentionSession = await AttentionSession.findOne({
+      roomId,
+      status: "active",
+    });
+
+    if (!attentionSession) {
+      attentionSession = new AttentionSession({
+        meetingId: meeting._id,
+        studentId: meeting.studentId,
+        teacherId: meeting.teacherId,
+        roomId: meeting.roomId,
+        sessionStartTime: new Date(),
+        attentionScores: [],
+      });
+      await attentionSession.save();
+      console.log(
+        `Created new attention session ${attentionSession._id} for room ${roomId}`,
+      );
+    }
+
+    res.json({
+      success: true,
+      message: "Meeting started and attention tracking initialized",
+      meeting,
+      attentionSessionId: attentionSession._id,
+    });
+  } catch (error) {
+    console.error("Start meeting error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
 // Complete meeting and release escrow to teacher
 const completeMeeting = async (req, res) => {
   try {
@@ -214,9 +279,13 @@ const completeMeeting = async (req, res) => {
 
     let meeting;
     if (meetingId) {
-      meeting = await Meeting.findById(meetingId).populate('studentId', 'name email').populate('teacherId', 'name email');
+      meeting = await Meeting.findById(meetingId)
+        .populate("studentId", "name email")
+        .populate("teacherId", "name email");
     } else if (roomId) {
-      meeting = await Meeting.findOne({ roomId }).populate('studentId', 'name email').populate('teacherId', 'name email');
+      meeting = await Meeting.findOne({ roomId })
+        .populate("studentId", "name email")
+        .populate("teacherId", "name email");
     }
 
     if (!meeting) {
@@ -236,11 +305,14 @@ const completeMeeting = async (req, res) => {
     // ⭐ ESCROW RELEASE: Transfer funds to teacher
     let bill = null;
     if (meeting.paymentStatus === "escrow") {
-      const teacher = await User.findById(meeting.teacherId._id || meeting.teacherId);
+      const teacher = await User.findById(
+        meeting.teacherId._id || meeting.teacherId,
+      );
 
       if (teacher) {
         // Credit teacher's wallet (minus platform fee)
-        teacher.walletBalance = (teacher.walletBalance || 0) + meeting.teacherEarning;
+        teacher.walletBalance =
+          (teacher.walletBalance || 0) + meeting.teacherEarning;
         await teacher.save();
 
         // Record teacher earning transaction
@@ -297,7 +369,13 @@ const completeMeeting = async (req, res) => {
             roomId: meeting.roomId,
             startedAt: meeting.startedAt,
             endedAt: new Date(),
-            durationMinutes: meeting.durationMinutes || Math.round((new Date() - new Date(meeting.startedAt || meeting.createdAt)) / 60000),
+            durationMinutes:
+              meeting.durationMinutes ||
+              Math.round(
+                (new Date() -
+                  new Date(meeting.startedAt || meeting.createdAt)) /
+                  60000,
+              ),
           },
           payment: {
             sessionPrice: (meeting.sessionPrice / 100).toFixed(2),
@@ -314,12 +392,13 @@ const completeMeeting = async (req, res) => {
     meeting.status = "completed";
     meeting.endedAt = new Date();
     if (meeting.startedAt) {
-      meeting.durationMinutes = Math.round((meeting.endedAt - meeting.startedAt) / 60000);
+      meeting.durationMinutes = Math.round(
+        (meeting.endedAt - meeting.startedAt) / 60000,
+      );
     }
     await meeting.save();
 
     // Find the associated attention session to return its ID
-    const AttentionSession = require("../models/Attentionsession.models");
     const {
       calculateMetrics,
       calculateTeacherEffectiveness,
@@ -334,7 +413,7 @@ const completeMeeting = async (req, res) => {
       attentionSession.sessionEndTime = new Date();
       attentionSession.sessionDuration = Math.floor(
         (attentionSession.sessionEndTime - attentionSession.sessionStartTime) /
-        1000,
+          1000,
       );
 
       // Populate metrics using the shared calculator
@@ -353,7 +432,9 @@ const completeMeeting = async (req, res) => {
 
     res.json({
       success: true,
-      message: bill ? "Session completed. Payment released to teacher." : "Session completed.",
+      message: bill
+        ? "Session completed. Payment released to teacher."
+        : "Session completed.",
       meeting,
       attentionSessionId, // Return this for teacher redirection
       bill, // Detailed payment bill
@@ -580,6 +661,11 @@ module.exports = {
   getPendingMeetings,
   getStudentSessions,
   acceptMeeting,
+  startMeeting,
+  completeMeeting,
+  cancelMeeting,
   declineMeeting,
   getTeachers,
+  getWalletBalance,
+  addMoney,
 };

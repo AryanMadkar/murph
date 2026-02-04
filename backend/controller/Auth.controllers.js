@@ -12,7 +12,18 @@ const generateToken = (userId) => {
 
 const register = async (req, res) => {
   try {
-    const { name, email, role, password } = req.body;
+    const {
+      name,
+      email,
+      role,
+      password,
+      age,
+      bio,
+      interests,
+      specialization,
+      category,
+      hourlyRate,
+    } = req.body;
 
     if (!name || !email || !role || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -31,6 +42,16 @@ const register = async (req, res) => {
       email,
       role,
       password: hashedPassword,
+      age,
+      bio,
+      interests: Array.isArray(interests)
+        ? interests
+        : interests
+          ? interests.split(",").map((i) => i.trim())
+          : [],
+      specialization,
+      category,
+      hourlyRate: hourlyRate ? parseInt(hourlyRate) : 0,
     });
 
     const token = generateToken(newUser._id);
@@ -70,12 +91,10 @@ const login = async (req, res) => {
     // DEBUG: Check if user has password
     if (!user.password) {
       console.error("Login failed: User has no password (legacy user?)");
-      return res
-        .status(500)
-        .json({
-          message:
-            "Account setup incomplete (missing password). Please register again.",
-        });
+      return res.status(500).json({
+        message:
+          "Account setup incomplete (missing password). Please register again.",
+      });
     }
 
     // Check password

@@ -2,7 +2,21 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
-import { Home, Compass, Calendar, Wallet, LogOut, Clock, Video, CheckCircle, Loader2, XCircle } from "lucide-react";
+import {
+  Home,
+  Compass,
+  Calendar,
+  Wallet,
+  LogOut,
+  Clock,
+  Video,
+  CheckCircle,
+  Loader2,
+  XCircle,
+  BookOpen,
+  ArrowRight,
+  Plus,
+} from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -11,6 +25,7 @@ const navItems = [
   { id: "home", label: "Home", icon: Home },
   { id: "explore", label: "Explore", icon: Compass },
   { id: "sessions", label: "My Sessions", icon: Calendar },
+  { id: "library", label: "My Library", icon: BookOpen },
   { id: "wallet", label: "Wallet", icon: Wallet },
 ];
 const socket = io(API_URL);
@@ -58,21 +73,80 @@ export default function StudentDashboard() {
     }
   };
 
-  // Fetch student sessions
-  const fetchSessions = async (studentId) => {
+  // Fetch student sessions and recommendations
+  const fetchAppData = async (studentId) => {
+    setLoading(true);
+    setSessionsLoading(true);
+    setRecLoading(true);
     try {
-      setSessionsLoading(true);
-      const res = await axios.get(`${API_URL}/api/meetings/student/${studentId}`, {
-        headers: getAuthHeaders(),
-      });
-      if (res.data.success) {
-        setPendingRequests(res.data.pendingRequests || []);
-        setActiveSessions(res.data.activeSessions || []);
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Parallel fetch
+      const [sessionsRes, recommendationsRes, materialsRes] = await Promise.all(
+        [
+          axios.get(`${API_URL}/api/meetings/student/${studentId}`, {
+            headers,
+          }),
+          axios.get(`${API_URL}/api/recommendations`, { headers }),
+          axios.get(`${API_URL}/api/materials/my-purchases`, { headers }),
+        ],
+      );
+
+      if (sessionsRes.data.success) {
+        setPendingRequests(sessionsRes.data.pendingRequests || []);
+        setActiveSessions(sessionsRes.data.activeSessions || []);
+      }
+
+      if (recommendationsRes.data.success) {
+        setRecommendations(recommendationsRes.data.recommendations || []);
+      }
+
+      if (materialsRes.data.success) {
+        setMyMaterials(materialsRes.data.materials || []);
       }
     } catch (err) {
-      console.error("Failed to fetch sessions:", err);
+      console.error("Error fetching app data:", err);
+      setMessage("Error loading data: " + err.message);
+      // Don't show error for library if it's just empty
     } finally {
+      setLoading(false);
       setSessionsLoading(false);
+      setRecLoading(false);
+    }
+  };
+
+  const [recommendations, setRecommendations] = useState([]);
+  const [recLoading, setRecLoading] = useState(false);
+  const [myMaterials, setMyMaterials] = useState([]);
+  const [buyingMaterial, setBuyingMaterial] = useState(null);
+
+  const handlePurchaseMaterial = async (materialId, price) => {
+    if (walletBalance < price / 100) {
+      setMessage("❌ Insufficient balance. Please top up your wallet.");
+      return;
+    }
+
+    setBuyingMaterial(materialId);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_URL}/api/materials/purchase`,
+        { materialId },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      if (res.data.success) {
+        setMessage("✅ Purchase successful! Content added to your library.");
+        fetchBalance();
+        fetchAppData(user._id); // Refresh library and recommendations
+      }
+    } catch (err) {
+      setMessage(
+        "❌ Purchase failed: " + (err.response?.data?.message || err.message),
+      );
+    } finally {
+      setBuyingMaterial(null);
     }
   };
 
@@ -97,7 +171,9 @@ export default function StudentDashboard() {
         localStorage.setItem("pendingPaymentIntent", res.data.intentId);
         // ⭐ Open Finternet payment in new tab (user stays on dashboard)
         window.open(res.data.paymentUrl, "_blank");
-        setMessage("💳 Complete payment in the new tab. Your balance will update automatically!");
+        setMessage(
+          "💳 Complete payment in the new tab. Your balance will update automatically!",
+        );
         setPaymentStatus("processing");
         setShowTopupModal(false);
         setTopupAmount("");
@@ -136,7 +212,7 @@ export default function StudentDashboard() {
         const res = await axios.post(
           `${API_URL}/api/wallet/verify-topup`,
           { intentId },
-          { headers: getAuthHeaders() }
+          { headers: getAuthHeaders() },
         );
 
         if (res.data.success && res.data.amountCredited) {
@@ -144,22 +220,29 @@ export default function StudentDashboard() {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
           setPaymentStatus("success");
-          setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
+          setMessage(
+            `✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`,
+          );
           setWalletBalance(res.data.newBalance);
           localStorage.removeItem("pendingPaymentIntent");
           return;
         }
 
         // Update status message
-        if (attempts % 8 === 0) { // Update message every 6 seconds
-          setMessage(`💳 Waiting for payment... (${Math.floor(attempts * 0.75)}s)`);
+        if (attempts % 8 === 0) {
+          // Update message every 6 seconds
+          setMessage(
+            `💳 Waiting for payment... (${Math.floor(attempts * 0.75)}s)`,
+          );
         }
 
         if (attempts >= maxAttempts) {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
           setPaymentStatus(null);
-          setMessage("⏰ Still waiting for payment. Click 'Add Funds' to check status.");
+          setMessage(
+            "⏰ Still waiting for payment. Click 'Add Funds' to check status.",
+          );
         }
       } catch (err) {
         console.error("Polling error:", err);
@@ -189,7 +272,9 @@ export default function StudentDashboard() {
       if (res.data.success && res.data.amountCredited) {
         // ✅ Payment completed!
         setPaymentStatus("success");
-        setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
+        setMessage(
+          `✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`,
+        );
         setWalletBalance(res.data.newBalance);
         localStorage.removeItem("pendingPaymentIntent");
 
@@ -204,13 +289,17 @@ export default function StudentDashboard() {
       // Payment still processing - continue polling
       if (res.data.status === "PROCESSING" || res.data.status === "INITIATED") {
         if (retryCount < maxRetries) {
-          setMessage(`⏳ Payment processing... (${retryCount + 1}/${maxRetries})`);
+          setMessage(
+            `⏳ Payment processing... (${retryCount + 1}/${maxRetries})`,
+          );
           pollingRef.current = setTimeout(() => {
             verifyPendingPayment(retryCount + 1);
           }, 2000); // Poll every 2 seconds
         } else {
           setPaymentStatus("failed");
-          setMessage("⏰ Payment verification timed out. Please check your transaction history.");
+          setMessage(
+            "⏰ Payment verification timed out. Please check your transaction history.",
+          );
         }
         return;
       }
@@ -221,7 +310,6 @@ export default function StudentDashboard() {
         setMessage("❌ Payment failed. Please try again.");
         localStorage.removeItem("pendingPaymentIntent");
       }
-
     } catch (err) {
       console.error("Verify error:", err);
 
@@ -232,7 +320,9 @@ export default function StudentDashboard() {
         }, 2000);
       } else {
         setPaymentStatus("failed");
-        setMessage("❌ " + (err.response?.data?.error || "Verification failed"));
+        setMessage(
+          "❌ " + (err.response?.data?.error || "Verification failed"),
+        );
       }
     }
   };
@@ -266,8 +356,8 @@ export default function StudentDashboard() {
     // Fetch wallet balance
     fetchBalance();
 
-    // Fetch student sessions
-    fetchSessions(parsedUser._id);
+    // Fetch all app data (sessions, etc.)
+    fetchAppData(parsedUser._id);
 
     // Check for pending payment (after redirect back)
     verifyPendingPayment();
@@ -352,12 +442,14 @@ export default function StudentDashboard() {
       const res = await axios.post(
         `${API_URL}/api/wallet/simulate-complete`,
         { intentId },
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeaders() },
       );
 
       if (res.data.success) {
         setPaymentStatus("success");
-        setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
+        setMessage(
+          `✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`,
+        );
         setWalletBalance(res.data.newBalance);
         localStorage.removeItem("pendingPaymentIntent");
       }
@@ -404,10 +496,11 @@ export default function StudentDashboard() {
                       navigate("/explore");
                     }
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${activeTab === item.id
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                    }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                    activeTab === item.id
+                      ? "bg-gray-100 text-gray-900"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  }`}
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
@@ -444,94 +537,256 @@ export default function StudentDashboard() {
 
         {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
 
-        {/* Active Sessions - Join Video Call */}
-        {activeSessions.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-              <Video className="h-5 w-5 text-green-500" />
-              Live Sessions
-            </h2>
-            <div className="grid gap-4">
-              {activeSessions.map((session) => (
-                <div
-                  key={session._id}
-                  className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200 shadow-sm flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-xl">
-                      👨‍🏫
+        {activeTab === "home" && (
+          <div className="space-y-6">
+            {/* Active Sessions - Join Video Call */}
+            {activeSessions.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+                  <Video className="h-5 w-5 text-green-500" />
+                  Live Sessions
+                </h2>
+                <div className="grid gap-4">
+                  {activeSessions.map((session) => (
+                    <div
+                      key={session._id}
+                      className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200 shadow-sm flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-xl">
+                          👨‍🏫
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900">
+                            Session with{" "}
+                            {session.teacherId?.name ||
+                              session.teacherId?.email?.split("@")[0]}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {session.teacherId?.email}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() =>
+                          navigate(`/video-call/${session.roomId}`)
+                        }
+                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors cursor-pointer shadow-lg"
+                      >
+                        <Video className="h-5 w-5" />
+                        Join Call
+                      </button>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900">
-                        Session with {session.teacherId?.name || session.teacherId?.email?.split('@')[0]}
-                      </h3>
-                      <p className="text-sm text-gray-500">{session.teacherId?.email}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/video-call/${session.roomId}`)}
-                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors cursor-pointer shadow-lg"
-                  >
-                    <Video className="h-5 w-5" />
-                    Join Call
-                  </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+            {/* Content Recommendations Section */}
+            <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8 mb-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Compass className="h-5 w-5 text-purple-500" />
+                  Recommended for You
+                </h2>
+                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded font-black uppercase tracking-widest">
+                  AI Powered
+                </span>
+              </div>
+
+              {recLoading ? (
+                <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+                  <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                  <p>Finding perfect content...</p>
+                </div>
+              ) : recommendations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl">
+                  <p>No recommendations yet. Tell us about your interests!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {recommendations.map((item) => (
+                    <div
+                      key={item._id}
+                      className="group bg-gray-50 rounded-2xl overflow-hidden border border-transparent hover:border-purple-200 transition-all hover:shadow-lg"
+                    >
+                      <div className="h-32 bg-gray-200 flex items-center justify-center text-3xl">
+                        {item.type === "video" ? "🎬" : "📄"}
+                      </div>
+                      <div className="p-5">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">
+                            {item.category}
+                          </span>
+                          <span className="font-bold text-gray-900">
+                            ${item.priceInDollars.toFixed(2)}
+                          </span>
+                        </div>
+                        <h3 className="font-bold text-gray-900 mb-1 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                          {item.title}
+                        </h3>
+                        <p className="text-xs text-gray-500 line-clamp-2 mb-4">
+                          {item.description}
+                        </p>
+                        <div className="flex items-center justify-between mt-auto">
+                          <p className="text-[10px] text-gray-400">
+                            By {item.teacherId?.name || "Expert"}
+                          </p>
+                          <button
+                            onClick={() =>
+                              handlePurchaseMaterial(item._id, item.price)
+                            }
+                            disabled={buyingMaterial === item._id}
+                            className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-full hover:bg-purple-600 transition-all cursor-pointer disabled:bg-gray-300 flex items-center gap-2"
+                          >
+                            {buyingMaterial === item._id ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Buying...
+                              </>
+                            ) : (
+                              "Buy Now"
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Pending Session Requests */}
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-            <Clock className="h-5 w-5 text-orange-500" />
-            Pending Requests
-            {pendingRequests.length > 0 && (
-              <span className="text-sm font-medium text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
-                {pendingRequests.length}
-              </span>
-            )}
-          </h2>
+        {activeTab === "library" && (
+          <div className="space-y-6">
+            <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-purple-500" />
+                My Purchased Content
+              </h2>
 
-          {sessionsLoading ? (
-            <div className="flex items-center justify-center h-32 bg-white rounded-2xl border border-gray-100">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-              <span className="ml-2 text-gray-400">Loading sessions...</span>
-            </div>
-          ) : pendingRequests.length === 0 ? (
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
-              <CheckCircle className="h-10 w-10 text-gray-200 mx-auto mb-2" />
-              <p className="text-gray-400 font-medium">No pending requests</p>
-              <p className="text-sm text-gray-300">Request a session from the Explore page</p>
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {pendingRequests.map((request) => (
-                <div
-                  key={request._id}
-                  className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-lg">
-                      ⏳
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {request.teacherId?.name || request.teacherId?.email?.split('@')[0]}
-                      </h3>
-                      <p className="text-sm text-gray-400">{request.teacherId?.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
-                      Waiting for teacher...
-                    </span>
-                  </div>
+              {myMaterials.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl">
+                  <BookOpen className="h-10 w-10 mb-3 opacity-20" />
+                  <p className="font-medium">Library is empty</p>
+                  <p className="text-sm opacity-60">
+                    Buy content from your recommendations to see it here.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {myMaterials.map((item) => (
+                    <div
+                      key={item._id}
+                      className="bg-white rounded-2xl overflow-hidden border border-gray-100 p-5 flex flex-col shadow-sm hover:shadow-md transition-all"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                          {item.type}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-gray-900 mb-1">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs text-gray-500 line-clamp-2 mb-4 flex-grow">
+                        {item.description}
+                      </p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const token = localStorage.getItem("token");
+                            const res = await axios.get(
+                              `${API_URL}/api/materials/access/${item._id}`,
+                              {
+                                headers: { Authorization: `Bearer ${token}` },
+                              },
+                            );
+                            if (res.data.success) {
+                              window.open(res.data.url, "_blank");
+                            }
+                          } catch (err) {
+                            setMessage(
+                              "❌ Failed to access: " +
+                                (err.response?.data?.message || err.message),
+                            );
+                          }
+                        }}
+                        className="w-full py-3 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer"
+                      >
+                        Access Content
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {activeTab === "sessions" && (
+          <div className="space-y-6">
+            {/* Pending Session Requests */}
+            <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-orange-500" />
+                Pending Requests
+                {pendingRequests.length > 0 && (
+                  <span className="text-sm font-medium text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                    {pendingRequests.length}
+                  </span>
+                )}
+              </h2>
+
+              {sessionsLoading ? (
+                <div className="flex items-center justify-center h-32 bg-white rounded-2xl border border-gray-100">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                  <span className="ml-2 text-gray-400">
+                    Loading sessions...
+                  </span>
+                </div>
+              ) : pendingRequests.length === 0 ? (
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
+                  <CheckCircle className="h-10 w-10 text-gray-200 mx-auto mb-2" />
+                  <p className="text-gray-400 font-medium">
+                    No pending requests
+                  </p>
+                  <p className="text-sm text-gray-300">
+                    Request a session from the Explore page
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {pendingRequests.map((request) => (
+                    <div
+                      key={request._id}
+                      className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-lg">
+                          ⏳
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {request.teacherId?.name ||
+                              request.teacherId?.email?.split("@")[0]}
+                          </h3>
+                          <p className="text-sm text-gray-400">
+                            {request.teacherId?.email}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                          Waiting for teacher...
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Payment Processing Banner */}
         {paymentStatus === "processing" && (
@@ -551,18 +806,26 @@ export default function StudentDashboard() {
 
         {/* Success/Error Message */}
         {message && paymentStatus !== "processing" && (
-          <div className={`p-4 mb-4 rounded-lg ${paymentStatus === "success"
-            ? "bg-green-50 border border-green-200"
-            : paymentStatus === "failed"
-              ? "bg-red-50 border border-red-200"
-              : "bg-blue-50 border border-blue-200"
-            }`}>
-            <p className={`font-medium ${paymentStatus === "success"
-              ? "text-green-700"
-              : paymentStatus === "failed"
-                ? "text-red-700"
-                : "text-blue-700"
-              }`}>{message}</p>
+          <div
+            className={`p-4 mb-4 rounded-lg ${
+              paymentStatus === "success"
+                ? "bg-green-50 border border-green-200"
+                : paymentStatus === "failed"
+                  ? "bg-red-50 border border-red-200"
+                  : "bg-blue-50 border border-blue-200"
+            }`}
+          >
+            <p
+              className={`font-medium ${
+                paymentStatus === "success"
+                  ? "text-green-700"
+                  : paymentStatus === "failed"
+                    ? "text-red-700"
+                    : "text-blue-700"
+              }`}
+            >
+              {message}
+            </p>
           </div>
         )}
 
@@ -578,10 +841,11 @@ export default function StudentDashboard() {
                   <button
                     key={amt}
                     onClick={() => setTopupAmount(amt.toString())}
-                    className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                      }`}
+                    className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${
+                      topupAmount === amt.toString()
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    }`}
                   >
                     ${amt}
                   </button>
@@ -604,7 +868,9 @@ export default function StudentDashboard() {
                   disabled={walletLoading || !topupAmount}
                   className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
                 >
-                  {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
+                  {walletLoading
+                    ? "Processing..."
+                    : `Pay $${topupAmount || "0"}`}
                 </button>
                 <button
                   onClick={() => {

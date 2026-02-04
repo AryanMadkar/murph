@@ -235,31 +235,42 @@ export default function VideoCall() {
     }
   };
 
-  // ================= ATTENTION TRACKING (STUDENT ONLY) =================
+  // ================= SESSION START & ATTENTION TRACKING =================
   useEffect(() => {
-    if (currentUser?.role !== "student" || !connected) return;
+    if (!connected || !currentUser) return;
 
     let sessionId = null;
     let aiSessionId = null;
 
-    const initAttention = async () => {
+    const startSessionFlow = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/attention/live/${roomId}`);
+        // 1. Start/Mark Meeting as Active & Init Attention Session
+        const token = localStorage.getItem("token");
+        const res = await axios.post(
+          `${API_URL}/api/meetings/start/${roomId}`,
+          {},
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
         if (res.data.success) {
-          sessionId = res.data.sessionId || res.data.session?._id;
+          sessionId = res.data.attentionSessionId;
+          console.log("Backend Session Started:", sessionId);
         }
-        const aiRes = await axios.post(`${AI_SESSION_URL}/session/start`);
-        aiSessionId = aiRes.data.session_id;
-        console.log("Attention tracking initialized:", {
-          sessionId,
-          aiSessionId,
-        });
+
+        // 2. Start AI Model Session (only if student)
+        if (currentUser.role === "student") {
+          const aiRes = await axios.post(`${AI_SESSION_URL}/session/start`);
+          aiSessionId = aiRes.data.session_id;
+          console.log("AI Attention Tracking started:", aiSessionId);
+        }
       } catch (err) {
-        console.error("Failed to init attention tracking:", err);
+        console.error("Failed to start session flow:", err);
       }
     };
 
-    initAttention();
+    startSessionFlow();
 
     const interval = setInterval(async () => {
       if (!sessionId || !aiSessionId || !localVideoRef.current) return;

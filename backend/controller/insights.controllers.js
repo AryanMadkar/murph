@@ -52,7 +52,7 @@ const generateTeachingTips = async (req, res) => {
         },
         { role: "user", content: prompt },
       ],
-      model: "llama3-8b-8192",
+      model: "groq/compound",
     });
 
     const tips =

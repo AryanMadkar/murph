@@ -5,6 +5,8 @@ const {
   getPendingMeetings,
   getStudentSessions,
   acceptMeeting,
+  startMeeting,
+  completeMeeting,
   declineMeeting,
   getTeachers,
   getWalletBalance,
@@ -25,6 +27,12 @@ router.get("/pending/:teacherId", getPendingMeetings);
 
 // Teacher accepts a meeting
 router.post("/accept/:meetingId", acceptMeeting);
+
+// Start meeting when video call begins
+router.post("/start/:roomId", startMeeting);
+
+// Complete meeting (release escrow)
+router.post("/complete", completeMeeting);
 
 // Teacher declines a meeting (⭐ refunds student)
 router.post("/decline/:meetingId", declineMeeting);
