@@ -2,8 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
+import { Home, Compass, Calendar, Wallet, LogOut } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+// Navigation items for sidebar
+const navItems = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "explore", label: "Explore", icon: Compass },
+  { id: "sessions", label: "My Sessions", icon: Calendar },
+  { id: "wallet", label: "Wallet", icon: Wallet },
+];
 const socket = io(API_URL);
 
 export default function StudentDashboard() {
@@ -426,16 +435,16 @@ export default function StudentDashboard() {
         {/* Success/Error Message */}
         {message && paymentStatus !== "processing" && (
           <div className={`p-4 mb-4 rounded-lg ${paymentStatus === "success"
-              ? "bg-green-50 border border-green-200"
-              : paymentStatus === "failed"
-                ? "bg-red-50 border border-red-200"
-                : "bg-blue-50 border border-blue-200"
+            ? "bg-green-50 border border-green-200"
+            : paymentStatus === "failed"
+              ? "bg-red-50 border border-red-200"
+              : "bg-blue-50 border border-blue-200"
             }`}>
             <p className={`font-medium ${paymentStatus === "success"
-                ? "text-green-700"
-                : paymentStatus === "failed"
-                  ? "text-red-700"
-                  : "text-blue-700"
+              ? "text-green-700"
+              : paymentStatus === "failed"
+                ? "text-red-700"
+                : "text-blue-700"
               }`}>{message}</p>
           </div>
         )}
@@ -497,6 +506,7 @@ export default function StudentDashboard() {
             </div>
           </div>
         )}
+      </main>
     </div>
   );
 }
