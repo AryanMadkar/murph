@@ -6,7 +6,16 @@ const AI_SERVICE_URL = process.env.AI_SERVICE_URL;
 
 const register = async (req, res) => {
   try {
-    const { email, role } = req.body;
+    const { email, role, secretKey } = req.body;
+
+    // Security Check
+    const REQUIRED_SECRET = process.env.REGISTRATION_SECRET || "admin123";
+    if (secretKey !== REQUIRED_SECRET) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid registration secret. Please contact administrator.",
+      });
+    }
 
     if (!email) {
       return res.status(400).json({

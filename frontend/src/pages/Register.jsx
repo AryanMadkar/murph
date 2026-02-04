@@ -2,11 +2,12 @@ import { useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const API_URL = "https://hobby-affiliated-adds-theology.trycloudflare.com/api";
+const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 export default function Register() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("student");
+  const [secretKey, setSecretKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [cameraActive, setCameraActive] = useState(false);
@@ -49,6 +50,7 @@ export default function Register() {
       const formData = new FormData();
       formData.append("email", email);
       formData.append("role", role);
+      formData.append("secretKey", secretKey);
       formData.append("image", blob, "face.jpg");
 
       try {
@@ -97,11 +99,28 @@ export default function Register() {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          style={{ width: "100%", padding: "10px", fontSize: "16px" }}
+          style={{
+            width: "100%",
+            padding: "10px",
+            fontSize: "16px",
+            marginBottom: "10px",
+          }}
         >
           <option value="student">Student</option>
           <option value="teacher">Teacher</option>
         </select>
+
+        <input
+          type="password"
+          placeholder="Registration Secret Key"
+          value={secretKey}
+          onChange={(e) => setSecretKey(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "10px",
+            fontSize: "16px",
+          }}
+        />
       </div>
 
       <div style={{ marginBottom: "20px" }}>

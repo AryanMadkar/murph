@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 
-const API_URL = "https://hobby-affiliated-adds-theology.trycloudflare.com";
-const socket = io(API_URL);
+const API_URL = import.meta.env.VITE_API_URL;
+// Don't initialize socket globally to avoid sticky connections/listeners issues in React Strict Mode
+// const socket = io(API_URL);
 
 const config = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -14,93 +15,169 @@ export default function VideoCall() {
   const navigate = useNavigate();
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+
+  const socketRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
+
   const [connected, setConnected] = useState(false);
-  const [callStatus, setCallStatus] = useState("Connecting...");
+  const [callStatus, setCallStatus] = useState("Initializing...");
+  const [logs, setLogs] = useState([]);
+
+  const addLog = (msg) => {
+    console.log(msg);
+    setLogs((prev) => [...prev.slice(-4), msg]); // Keep last 5 logs for UI
+    setCallStatus(msg);
+  };
 
   useEffect(() => {
+    // Initialize Socket
+    socketRef.current = io(API_URL);
     const user = JSON.parse(localStorage.getItem("user") || "{}");
+
     if (!user.id) {
       navigate("/login");
       return;
     }
 
     const initCall = async () => {
-      // Get local media
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      localStreamRef.current = stream;
-      localVideoRef.current.srcObject = stream;
+      try {
+        addLog("Getting user media...");
+        // Get local media
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
 
-      // Create peer connection
-      peerConnectionRef.current = new RTCPeerConnection(config);
-
-      // Add local tracks
-      stream.getTracks().forEach((track) => {
-        peerConnectionRef.current.addTrack(track, stream);
-      });
-
-      // Handle remote track
-      peerConnectionRef.current.ontrack = (event) => {
-        remoteVideoRef.current.srcObject = event.streams[0];
-        setConnected(true);
-        setCallStatus("Connected");
-      };
-
-      // Handle ICE candidates
-      peerConnectionRef.current.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit("ice-candidate", { roomId, candidate: event.candidate });
+        localStreamRef.current = stream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
         }
-      };
+        addLog("Local media obtained.");
 
-      // Join room
-      socket.emit("join-room", roomId, user.id);
+        // Join room logic
+        setupSocketListeners(user.id);
 
-      // Handle user connected (create offer)
-      socket.on("user-connected", async () => {
-        setCallStatus("User joined, creating offer...");
+        socketRef.current.emit("join-room", roomId, user.id);
+        addLog(`Joined room: ${roomId}`);
+      } catch (err) {
+        addLog(`Error accessing media: ${err.message}`);
+      }
+    };
+
+    const setupSocketListeners = (userId) => {
+      const socket = socketRef.current;
+
+      // Handle user connected (create offer) - WE are the caller
+      socket.on("user-connected", async (newUserId) => {
+        addLog(`User connected: ${newUserId}. Creating Offer...`);
+        createPeerConnection(userId);
+
         const offer = await peerConnectionRef.current.createOffer();
         await peerConnectionRef.current.setLocalDescription(offer);
-        socket.emit("offer", { roomId, caller: user.id, sdp: offer });
+
+        addLog("Sending Offer...");
+        socket.emit("offer", { roomId, caller: userId, sdp: offer });
       });
 
-      // Handle offer
+      // Handle offer - WE are the callee
       socket.on("offer", async (payload) => {
-        setCallStatus("Received offer, creating answer...");
+        addLog("Received Offer. Creating Answer...");
+        createPeerConnection(userId); // Ensure PC exists
+
         await peerConnectionRef.current.setRemoteDescription(
           new RTCSessionDescription(payload.sdp),
         );
+
         const answer = await peerConnectionRef.current.createAnswer();
         await peerConnectionRef.current.setLocalDescription(answer);
-        socket.emit("answer", { roomId, caller: user.id, sdp: answer });
+
+        addLog("Sending Answer...");
+        socket.emit("answer", { roomId, caller: userId, sdp: answer });
       });
 
       // Handle answer
       socket.on("answer", async (payload) => {
+        addLog("Received Answer. Setting Remote Description...");
         await peerConnectionRef.current.setRemoteDescription(
           new RTCSessionDescription(payload.sdp),
         );
-        setCallStatus("Call connected");
+        setConnected(true);
+        addLog("Call Connected!");
       });
 
       // Handle ICE candidate
       socket.on("ice-candidate", async (payload) => {
         if (peerConnectionRef.current) {
-          await peerConnectionRef.current.addIceCandidate(
-            new RTCIceCandidate(payload.candidate),
-          );
+          try {
+            await peerConnectionRef.current.addIceCandidate(
+              new RTCIceCandidate(payload.candidate),
+            );
+            // addLog("Added ICE Candidate");
+          } catch (e) {
+            console.error("Error adding ICE candidate", e);
+          }
         }
       });
 
-      // Handle user disconnected
       socket.on("user-disconnected", () => {
-        setCallStatus("User disconnected");
+        addLog("User disconnected");
         setConnected(false);
+        if (remoteVideoRef.current) srcObject = null;
+        closePeerConnection();
       });
+    };
+
+    const createPeerConnection = (userId) => {
+      if (peerConnectionRef.current) {
+        // Optionally close existing? logic usually assumes 1-on-1
+        // addLog("PeerConnection already exists, reusing/resetting?");
+        // For now, let's keep it simple. If we need to support multi-party, we need a map of PCs.
+        // Assuming 1-on-1 for now.
+        return;
+      }
+      addLog("Creating RTCPeerConnection");
+      const pc = new RTCPeerConnection(config);
+      peerConnectionRef.current = pc;
+
+      // Add local tracks
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => {
+          pc.addTrack(track, localStreamRef.current);
+        });
+      }
+
+      // Handle remote track
+      pc.ontrack = (event) => {
+        addLog("Received Remote Track");
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+        setConnected(true);
+      };
+
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socketRef.current.emit("ice-candidate", {
+            roomId,
+            candidate: event.candidate,
+          });
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        addLog(`PC State: ${pc.connectionState}`);
+      };
+    };
+
+    const closePeerConnection = () => {
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.ontrack = null;
+        peerConnectionRef.current.onicecandidate = null;
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
     };
 
     initCall();
@@ -110,24 +187,15 @@ export default function VideoCall() {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
-      if (peerConnectionRef.current) {
-        peerConnectionRef.current.close();
+      closePeerConnection();
+
+      if (socketRef.current) {
+        socketRef.current.disconnect();
       }
-      socket.off("user-connected");
-      socket.off("offer");
-      socket.off("answer");
-      socket.off("ice-candidate");
-      socket.off("user-disconnected");
     };
   }, [roomId, navigate]);
 
   const endCall = () => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-    }
     navigate(-1);
   };
 
@@ -143,7 +211,21 @@ export default function VideoCall() {
     >
       <h1>Video Call</h1>
       <p>Room: {roomId}</p>
-      <p>Status: {callStatus}</p>
+
+      <div
+        style={{
+          background: "#333",
+          padding: "10px",
+          borderRadius: "5px",
+          marginBottom: "20px",
+          fontSize: "12px",
+          fontFamily: "monospace",
+        }}
+      >
+        {logs.map((log, i) => (
+          <div key={i}>{log}</div>
+        ))}
+      </div>
 
       <div
         style={{
@@ -164,7 +246,7 @@ export default function VideoCall() {
           />
         </div>
         <div style={{ flex: 1, minWidth: "300px" }}>
-          <h3>Remote</h3>
+          <h3>Remote {connected ? "(Connected)" : "(Waiting...)"}</h3>
           <video
             ref={remoteVideoRef}
             autoPlay
