@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
 
@@ -12,6 +12,95 @@ export default function StudentDashboard() {
   const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Wallet state
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [topupAmount, setTopupAmount] = useState("");
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [showTopupModal, setShowTopupModal] = useState(false);
+
+  // Get auth token
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return { Authorization: `Bearer ${token}` };
+  };
+
+  // Fetch wallet balance
+  const fetchBalance = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/wallet/balance`, {
+        headers: getAuthHeaders(),
+      });
+      setWalletBalance(res.data.data.balanceInDollars);
+    } catch (err) {
+      console.error("Failed to fetch balance:", err);
+    }
+  };
+
+  // ⭐ STEP 3 & 4 - Create topup intent and redirect to payment
+  const handleTopup = async () => {
+    const amount = parseFloat(topupAmount);
+    if (!amount || amount < 1) {
+      setMessage("❌ Minimum top-up is $1");
+      return;
+    }
+
+    setWalletLoading(true);
+    try {
+      // Step 3: Create payment intent
+      const res = await axios.post(
+        `${API_URL}/api/wallet/create-topup`,
+        { amount },
+        { headers: getAuthHeaders() }
+      );
+
+      if (res.data.success && res.data.data.paymentUrl) {
+        // Store intentId for verification after redirect
+        localStorage.setItem("pendingPaymentIntent", res.data.data.intentId);
+        
+        // Step 4: Redirect to Finternet payment page
+        window.location.href = res.data.data.paymentUrl;
+      } else {
+        setMessage("❌ Failed to create payment. Please try again.");
+      }
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.error || err.message));
+    } finally {
+      setWalletLoading(false);
+      setShowTopupModal(false);
+    }
+  };
+
+  // ⭐ STEP 5 - Verify payment after redirect back
+  const verifyPendingPayment = async () => {
+    const intentId = localStorage.getItem("pendingPaymentIntent");
+    if (!intentId) return;
+
+    setMessage("🔄 Verifying your payment...");
+    try {
+      const res = await axios.post(
+        `${API_URL}/api/wallet/verify-topup`,
+        { intentId },
+        { headers: getAuthHeaders() }
+      );
+
+      if (res.data.success) {
+        setMessage(`✅ $${res.data.data.amountCredited} added to your wallet!`);
+        setWalletBalance(res.data.data.newBalance);
+        localStorage.removeItem("pendingPaymentIntent");
+      } else if (res.data.status === "PENDING") {
+        setMessage("⏳ Payment still processing. We'll update your balance soon.");
+      }
+    } catch (err) {
+      if (err.response?.data?.error === "Payment failed") {
+        setMessage("❌ Payment was not completed.");
+        localStorage.removeItem("pendingPaymentIntent");
+      } else {
+        setMessage("⏳ Payment verification pending...");
+      }
+    }
+  };
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -30,18 +119,8 @@ export default function StudentDashboard() {
     }
     setUser(parsedUser);
 
-    // Register on mount and on reconnection
-    const registerSocket = () => {
-      if (socket.connected) {
-        socket.emit("register-user", parsedUser.id);
-      }
-    };
-
-    // Register immediately if already connected
-    registerSocket();
-
-    // Listen for connection (in case of server restart)
-    socket.on("connect", registerSocket);
+    // Register with socket
+    socket.emit("register-user", parsedUser.id);
 
     // Fetch teachers
     axios
@@ -64,7 +143,7 @@ export default function StudentDashboard() {
       socket.off("meeting-accepted");
       socket.off("connect", registerSocket);
     };
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   const requestMeeting = async (teacherId) => {
     try {
@@ -88,6 +167,8 @@ export default function StudentDashboard() {
 
   const logout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("pendingPaymentIntent");
     navigate("/login");
   };
 
@@ -106,7 +187,7 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {user && <p className="text-gray-600 mb-4">Welcome, {user.email}</p>}
+      {user && <p>Welcome, {user.email}</p>}
 
       {message && <p className="font-bold text-blue-500 mb-4">{message}</p>}
 

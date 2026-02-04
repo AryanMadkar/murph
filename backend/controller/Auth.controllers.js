@@ -1,6 +1,7 @@
 const User = require("../models/user.models");
 const axios = require("axios");
 const FormData = require("form-data");
+const jwt = require("jsonwebtoken");
 
 const AI_AUTH_URL = process.env.AI_AUTH_URL;
 
@@ -33,11 +34,21 @@ const register = async (req, res) => {
       embeddings: [aiRes.data.embedding],
     });
 
-    res.json({
+    await newUser.save();
+
+    // ✅ Generate JWT token on registration
+    const token = generateToken(newUser._id);
+
+    res.status(201).json({
       success: true,
-      userId: user._id,
-      email,
-      role,
+      message: "User registered successfully",
+      token,
+      user: {
+        email: newUser.email,
+        role: newUser.role,
+        id: newUser._id,
+        walletBalance: newUser.walletBalance / 100,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -66,87 +77,49 @@ const login = async (req, res) => {
     try {
       encodeRes = await axios.post(`${AI_SERVICE_URL}/encode`, formData, {
         headers: formData.getHeaders(),
-      });
-    } catch (aiErr) {
-      console.error("AI Service Encode Error:", aiErr.message);
-      return res
-        .status(500)
-        .json({ message: "AI Service Unavailable (Encode)" });
-    }
-
-    if (!encodeRes.data.success) {
-      console.log("Face detection failed during login.");
-      return res.status(400).json({ message: "Face not detected in image" });
-    }
-
-    const newEmbedding = encodeRes.data.embedding;
-
-    // 3. Match against THIS user's embeddings
-    let storedEmbeddings = user.embeddings;
-
-    // Check for legacy data and migrate if needed
-    if (
-      (!storedEmbeddings || storedEmbeddings.length === 0) &&
-      user.embedding &&
-      user.embedding.length > 0
-    ) {
-      console.log(
-        `Migrating legacy user ${user.email} to new embeddings format...`,
-      );
-      storedEmbeddings = [user.embedding];
-
-      // Save the migration
-      user.embeddings = storedEmbeddings;
-      user.embedding = undefined; // Clear old field
-      await user.save();
-      console.log("Migration successful.");
-    }
-
-    if (!storedEmbeddings || storedEmbeddings.length === 0) {
-      console.error(
-        "User has no registered face embeddings (even after migration check).",
-      );
-      return res
-        .status(500)
-        .json({ message: "User data corrupted (No face data)" });
-    }
-
-    console.log(
-      `Matching against user ${user.email} with ${storedEmbeddings.length} embeddings...`,
+        timeout: 10000,
+      },
     );
 
-    let matchRes;
-    try {
-      matchRes = await axios.post(
-        `${AI_SERVICE_URL}/match`,
-        {
-          new_embedding: newEmbedding,
-          stored_embeddings: storedEmbeddings,
-        },
-        { headers: { "Content-Type": "application/json" } },
-      );
-    } catch (aiErr) {
-      console.error(
-        "AI Service Match Error:",
-        aiErr.response?.data || aiErr.message,
-      );
-      return res.status(500).json({ message: "AI Service Error (Match)" });
+    if (!encodeResponse.data.success) {
+      return res.status(400).json({
+        success: false,
+        message: encodeResponse.data.error || "Face not detected",
+      });
     }
 
-    if (matchRes.data.match) {
-      console.log("Login successful!");
+    // Match faces using Python AI service
+    const matchPayload = {
+      new_embedding: encodeResponse.data.embedding,
+      stored_embeddings: [user.embedding],
+    };
+
+    const matchResponse = await axios.post(
+      `${AI_SERVICE_URL}/match`,
+      matchPayload,
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 10000,
+      },
+    );
+
+    if (matchResponse.data.match) {
+      // ✅ Generate JWT token on successful login
+      const token = generateToken(user._id);
+
       res.json({
         success: true,
-        userId: user._id,
-        email: user.email,
-        role: user.role,
-        distance: matchRes.data.distance,
+        message: "✅ Login successful",
+        match: true,
+        distance: matchResponse.data.distance,
+        token,
         user: {
           // Sending user object for frontend consistency
           id: user._id,
           email: user.email,
           role: user.role,
-          walletBalance: user.walletBalance,
+          id: user._id,
+          walletBalance: user.walletBalance / 100,
         },
       });
     } else {

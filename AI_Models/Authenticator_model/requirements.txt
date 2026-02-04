@@ -8,3 +8,4 @@ tf-keras
 tensorflow
 keras
 mediapipe
+retina-face

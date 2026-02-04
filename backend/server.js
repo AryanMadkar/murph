@@ -1,7 +1,8 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 const connectDB = require("./config/db");
-require("dotenv").config();
 
 const http = require("http");
 const setupSocket = require("./socket/socket");
@@ -15,13 +16,14 @@ setupSocket(server);
 
 const authRoutes = require("./routes/auth.routes");
 const meetingRoutes = require("./routes/meeting.routes");
+const walletRoutes = require("./routes/wallet.routes");
+const escrowRoutes = require("./routes/escrow.routes");
 
 app.use(cors());
 app.use(express.json());
 
 app.use("/api", authRoutes);
 app.use("/api/meetings", meetingRoutes);
-app.use("/api/payment", require("./routes/payment.routes"));
 app.use("/api/attention", require("./routes/Attention.routes"));
 app.use("/api/insights", require("./routes/insights.routes"));
 
@@ -37,7 +39,7 @@ app.get("/api/health", (req, res) => {
 app.get("/api/users", async (req, res) => {
   const User = require("./models/user.models");
   try {
-    const users = await User.find({}, "email role createdAt");
+    const users = await User.find({}, "email role createdAt walletBalance");
     res.json({
       success: true,
       users,
@@ -50,6 +52,37 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
+// ============= TEST LOGIN (for testing wallet without face auth) =============
+app.post("/api/test-login", async (req, res) => {
+  const User = require("./models/user.models");
+  const jwt = require("jsonwebtoken");
+  const JWT_SECRET = process.env.JWT_SECRET || "murph_secret_key_change_in_production";
+  
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "7d" });
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        walletBalance: user.walletBalance / 100,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 connectDB()
   .then(() => {
     console.log("MongoDB connected");
@@ -58,6 +91,6 @@ connectDB()
     console.log("MongoDB connection error", error);
   });
 
-server.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+server.listen(port, "0.0.0.0", () => {
+  console.log(`Server is running on http://0.0.0.0:${port}`);
 });

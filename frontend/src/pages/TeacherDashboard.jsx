@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
+import { Loader2, CheckCircle, Clock } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const socket = io(API_URL);
@@ -92,56 +93,84 @@ export default function TeacherDashboard() {
 
   const logout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     navigate("/login");
   };
 
   return (
-    <div className="p-10 font-sans min-h-screen bg-gray-50">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
-        <div className="flex gap-4">
-          {/* Wallet Removed */}
-          <button
-            onClick={logout}
-            className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-          >
-            Logout
-          </button>
+    <div className="min-h-screen bg-[#FAFAFA] font-['Source_Sans_Pro'] pt-28 pb-12 px-10">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-end mb-12">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Teacher Dashboard</h1>
+            {user && <p className="text-gray-500 mt-2 text-lg">Welcome back, {user.email}</p>}
+          </div>
+          <div>
+            <button
+              onClick={logout}
+              className="text-gray-500 hover:text-gray-900 font-medium transition-colors cursor-pointer"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+
+        {/* Notifications */}
+        {message && (
+          <div className="mb-8 p-4 bg-white border border-gray-100 shadow-sm rounded-xl flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-green-500"></div>
+            <p className="font-medium text-gray-800">{message}</p>
+          </div>
+        )}
+
+        {/* Content Section */}
+        <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8 min-h-[400px]">
+          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-gray-400" />
+            Pending Requests
+          </h2>
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+              <Loader2 className="h-8 w-8 animate-spin mb-2" />
+              <p>Loading requests...</p>
+            </div>
+          ) : requests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl">
+              <CheckCircle className="h-10 w-10 mb-3 opacity-20" />
+              <p className="font-medium">No pending requests</p>
+              <p className="text-sm opacity-60">You're all caught up!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {requests.map((req) => (
+                <div
+                  key={req._id}
+                  className="p-6 bg-gray-50 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 transition-all hover:bg-gray-100"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center text-xl shadow-sm">
+                      🎓
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-medium mb-0.5">Student</p>
+                      <p className="text-lg font-bold text-gray-900">{req.studentId?.email || "Unknown"}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => acceptMeeting(req._id, req.studentId?._id)}
+                    className="w-full sm:w-auto px-8 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    Accept Session
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
-      {user && <p className="text-gray-600 mb-4">Welcome, {user.email}</p>}
-
-      {message && <p className="font-bold text-green-500 mb-4">{message}</p>}
-
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">
-        Pending Meeting Requests
-      </h2>
-
-      {loading ? (
-        <p className="text-gray-500">Loading...</p>
-      ) : requests.length === 0 ? (
-        <p className="text-gray-500">No pending requests</p>
-      ) : (
-        <ul className="list-none p-0">
-          {requests.map((req) => (
-            <li
-              key={req._id}
-              className="p-4 mb-3 bg-orange-50 rounded-lg flex justify-between items-center shadow-sm border border-orange-100"
-            >
-              <span className="text-gray-700">
-                📧 Student: {req.studentId?.email || "Unknown"}
-              </span>
-              <button
-                onClick={() => acceptMeeting(req._id, req.studentId?._id)}
-                className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg cursor-pointer transition-colors"
-              >
-                ✅ Accept Meeting
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

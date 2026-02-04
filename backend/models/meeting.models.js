@@ -14,25 +14,35 @@ const meetingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "accepted", "rejected", "completed", "cancelled"],
+      enum: ["pending", "accepted", "declined", "completed", "cancelled"],
       default: "pending",
     },
     roomId: {
       type: String,
       default: null,
     },
-    amount: {
+    // ⭐ STEP 6 - Payment tracking
+    sessionPrice: {
       type: Number,
-      default: 100, // Default session price
+      default: 500, // in cents ($5.00)
     },
     paymentStatus: {
       type: String,
-      enum: ["held", "transferred", "refunded", "free"],
-      default: "free",
+      enum: ["paid", "refunded", "pending"],
+      default: "paid",
     },
-    completedAt: {
+    // Session timing (for pay-per-minute if needed later)
+    startedAt: {
       type: Date,
       default: null,
+    },
+    endedAt: {
+      type: Date,
+      default: null,
+    },
+    durationMinutes: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true },
