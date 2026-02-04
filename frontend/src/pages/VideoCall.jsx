@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "https://hobby-affiliated-adds-theology.trycloudflare.com";
 const socket = io(API_URL);
 
 const config = {

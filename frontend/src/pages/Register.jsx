@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = "https://hobby-affiliated-adds-theology.trycloudflare.com/api";
 
 export default function Register() {
   const [email, setEmail] = useState("");
