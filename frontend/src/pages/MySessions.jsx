@@ -126,7 +126,7 @@ export default function MySessions() {
             {/* Live Sessions Section */}
             {sessions.filter(s => s.status === 'accepted').length > 0 && (
                 <div className="mb-8">
-                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+                    {/* <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
                         <Video className="h-5 w-5 text-green-500" />
                         Live Sessions
                     </h2>
@@ -156,7 +156,7 @@ export default function MySessions() {
                                 </button>
                             </div>
                         ))}
-                    </div>
+                    </div> */}
                 </div>
             )}
 
