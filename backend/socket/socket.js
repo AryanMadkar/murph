@@ -80,6 +80,61 @@ const setupSocket = (server) => {
 
       socket.to(roomId).emit("receive-message", payload);
     });
+
+    socket.on("session-ended", (payload) => {
+      const { roomId } = payload;
+      // Notify everyone else in the room that the session is officially over
+      socket.to(roomId).emit("session-ended", payload);
+      console.log(`Session ended in room ${roomId}`);
+    });
+
+    // ============= ATTENTION TRACKING EVENTS =============
+
+    socket.on("attention-update", (payload) => {
+      const {
+        roomId,
+        attentionScore,
+        stabilityScore,
+        centeringScore,
+        faceDetected,
+      } = payload;
+      socket.to(roomId).emit("attention-score", {
+        attentionScore,
+        stabilityScore,
+        centeringScore,
+        faceDetected,
+        timestamp: new Date(),
+      });
+      console.log(`Attention update for room ${roomId}: ${attentionScore}`);
+    });
+
+    socket.on("attention-alert", (payload) => {
+      const { roomId, alertType, message } = payload;
+      socket.to(roomId).emit("attention-alert-received", {
+        alertType,
+        message,
+        timestamp: new Date(),
+      });
+    });
+
+    socket.on("teacher-intervention", (payload) => {
+      const { roomId, interventionType } = payload;
+      console.log(
+        `Teacher intervention in room ${roomId}: ${interventionType}`,
+      );
+      socket.to(roomId).emit("intervention-noted", {
+        interventionType,
+        timestamp: new Date(),
+      });
+    });
+
+    socket.on("request-session-metrics", (payload) => {
+      const { roomId } = payload;
+      socket.emit("metrics-requested", {
+        roomId,
+        message: "Fetching session metrics...",
+      });
+    });
   });
 
   return io;
