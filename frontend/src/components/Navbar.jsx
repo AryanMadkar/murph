@@ -31,7 +31,7 @@ const Navbar = () => {
                 {/* CTA Button */}
                 <div className="flex items-center">
                     <button className="px-6 py-3 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-700 transition-colors">
-                        Book a Call
+                        Book a Session
                     </button>
                 </div>
             </div>
