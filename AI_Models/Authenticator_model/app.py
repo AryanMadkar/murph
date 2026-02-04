@@ -136,7 +136,10 @@ async def health_check():
     return {
         "status": "healthy",
         "model": FACE_MODEL,
-        "threshold": MATCH_THRESHOLD
+        "threshold": MATCH_THRESHOLD,
+        "detector": DETECTOR_BACKEND,
+        "distance_metric": DISTANCE_METRIC,
+        "enforce_detection": ENFORCE_DETECTION
     }
 
 
@@ -242,8 +245,21 @@ async def match_faces(data: MatchRequest):
         for idx, stored_emb in enumerate(data.stored_embeddings):
             stored_array = np.array(stored_emb)
 
-            # Calculate Euclidean distance
-            distance = np.linalg.norm(new_embedding - stored_array)
+            # Calculate distance based on metric
+            if DISTANCE_METRIC == "cosine":
+                # Cosine similarity: 1 - (a·b)/(||a||*||b||)
+                # Lower is better (0 = identical, 2 = opposite)
+                dot_product = np.dot(new_embedding, stored_array)
+                norm_new = np.linalg.norm(new_embedding)
+                norm_stored = np.linalg.norm(stored_array)
+                if norm_new > 0 and norm_stored > 0:
+                    cosine_similarity = dot_product / (norm_new * norm_stored)
+                    distance = 1 - cosine_similarity
+                else:
+                    distance = 2.0  # Max distance if normalization fails
+            else:
+                # Euclidean distance
+                distance = np.linalg.norm(new_embedding - stored_array)
 
             logger.debug(f"Distance to embedding {idx}: {distance}")
 

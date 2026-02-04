@@ -2,27 +2,73 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    email: { type: String, unique: true, required: true },
-    role: { type: String, enum: ["teacher", "student"], required: true },
-
-    // Store multiple embeddings for accuracy
-    embeddings: {
-      type: [[Number]],
+    name: {
+      type: String,
+      default: null,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    role: {
+      type: String,
+      enum: ["teacher", "student"],
       required: true,
     },
 
     // Legacy field for data migration
     embedding: {
       type: [Number],
-      required: false,
+      required: true,
     },
-
+    
+    // ⭐ WALLET - Store balance in paise (1 USD = 100 paise/cents)
     walletBalance: {
       type: Number,
       default: 0,
+      min: 0,
+    },
+    
+    // Bank account for teacher payouts
+    bankAccount: {
+      accountId: { type: String, default: null },
+      accountName: { type: String, default: null },
+      isVerified: { type: Boolean, default: false },
     },
   },
   { timestamps: true },
 );
 
-module.exports = mongoose.model("User", userSchema);
+// Virtual to get balance in dollars
+userSchema.virtual("balanceInDollars").get(function () {
+  return this.walletBalance / 100;
+});
+
+// Method to add funds (in paise)
+userSchema.methods.addFunds = async function (amountInPaise) {
+  this.walletBalance += amountInPaise;
+  return this.save();
+};
+
+// Method to deduct funds (in paise)
+userSchema.methods.deductFunds = async function (amountInPaise) {
+  if (this.walletBalance < amountInPaise) {
+    throw new Error("Insufficient balance");
+  }
+  this.walletBalance -= amountInPaise;
+  return this.save();
+};
+
+// Method to check if user has sufficient balance
+userSchema.methods.hasSufficientBalance = function (amountInPaise) {
+  return this.walletBalance >= amountInPaise;
+};
+
+// Include virtuals in JSON
+userSchema.set("toJSON", { virtuals: true });
+userSchema.set("toObject", { virtuals: true });
+
+const User = mongoose.model("User", userSchema);
+
+module.exports = User;

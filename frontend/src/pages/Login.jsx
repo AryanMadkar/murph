@@ -64,8 +64,10 @@ export default function Login() {
       try {
         const response = await axios.post(`${API_URL}/login`, formData);
         if (response.data.success) {
-          setMessage("success");
+          setMessage("✅ Login successful!");
+          // ✅ Store both user and JWT token
           localStorage.setItem("user", JSON.stringify(response.data.user));
+          localStorage.setItem("token", response.data.token);
           const role = response.data.user.role;
           setTimeout(() => {
             navigate(role === "teacher" ? "/teacher-dashboard" : "/student-dashboard");

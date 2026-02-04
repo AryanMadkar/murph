@@ -81,6 +81,7 @@ export default function TeacherDashboard() {
 
   const logout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     navigate("/login");
   };
 
