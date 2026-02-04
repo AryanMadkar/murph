@@ -31,7 +31,7 @@ const Hero = () => {
                     <div className="max-w-md px-8 py-8 border-l-4 border-gray-900">
                         <p className="text-xl font-bold leading-relaxed text-gray-900 mb-6">
                             Your Class. Your Time. Your Money.<br />
-                            — <span className="text-orange-500">Set It Free in a Week.</span>
+                            {/* — <span className="text-orange-500">Set It Free in a Week.</span> */}
                         </p>
                         <p className="text-lg font-medium leading-relaxed text-gray-600 m-0">
                             A pay-per-use learning platform where students only pay for the time they actually learn, and teachers receive instant, transparent, and fair payments for every session. Powered by AI for smart class discovery and trustworthy reviews,<strong className="text-gray-900 font-extrabold">we create a balanced marketplace that rewards quality learning and quality teaching.</strong>.
@@ -43,7 +43,7 @@ const Hero = () => {
             {/* CTA Button */}
             <div className="flex justify-center py-10 pb-16 relative z-20">
                 <Link to="/register" className="px-10 py-4 bg-gray-900 text-white text-base font-medium rounded-full hover:bg-gray-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 no-underline inline-block">
-                    Registration
+                    Book a Session
                 </Link>
             </div>
 
