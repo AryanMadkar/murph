@@ -40,7 +40,9 @@ app.add_middleware(
 # Options: VGG-Face, Facenet, OpenFace, DeepFace, DeepID, ArcFace, Dlib
 FACE_MODEL = os.getenv("FACE_MODEL", "Facenet")
 MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "10.0"))
-ENFORCE_DETECTION = os.getenv("ENFORCE_DETECTION", "True").lower() == "true"
+ENFORCE_DETECTION = os.getenv("ENFORCE_DETECTION", "False").lower() == "true"
+# 'skip' avoids detection logic and uses the whole image - very reliable for webcams
+DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "skip")
 
 
 # Pydantic models
@@ -165,7 +167,8 @@ async def encode_face(file: UploadFile = File(...)):
         result = DeepFace.represent(
             img_path=temp_path,
             model_name=FACE_MODEL,
-            enforce_detection=ENFORCE_DETECTION
+            enforce_detection=ENFORCE_DETECTION,
+            detector_backend=DETECTOR_BACKEND
         )
 
         # Extract embedding from result
