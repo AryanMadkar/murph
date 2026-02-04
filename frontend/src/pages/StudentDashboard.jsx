@@ -11,6 +11,8 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("home");
+  const [chatInput, setChatInput] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const pollingRef = useRef(null);
@@ -42,7 +44,7 @@ export default function StudentDashboard() {
     }
   };
 
-  // ⭐ STEP 3 & 4 - Create topup intent and redirect to Finternet payment page
+  // Create topup intent and redirect to Finternet payment page
   const handleTopup = async () => {
     const amount = parseFloat(topupAmount);
     if (!amount || amount < 1) {
@@ -70,7 +72,6 @@ export default function StudentDashboard() {
         // ⭐ Start fast polling immediately (every 1.5 seconds)
         startFastPolling(res.data.intentId);
       } else if (res.data.success && res.data.intentId) {
-        // If no paymentUrl, store intent and show message
         localStorage.setItem("pendingPaymentIntent", res.data.intentId);
         setMessage("📝 Payment intent created. Complete payment to add funds.");
         setShowTopupModal(false);
@@ -92,13 +93,13 @@ export default function StudentDashboard() {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
     }
-    
+
     let attempts = 0;
     const maxAttempts = 120; // 90 seconds max (120 * 750ms)
-    
+
     pollingRef.current = setInterval(async () => {
       attempts++;
-      
+
       try {
         const res = await axios.post(
           `${API_URL}/api/wallet/verify-topup`,
@@ -116,12 +117,12 @@ export default function StudentDashboard() {
           localStorage.removeItem("pendingPaymentIntent");
           return;
         }
-        
+
         // Update status message
         if (attempts % 8 === 0) { // Update message every 6 seconds
           setMessage(`💳 Waiting for payment... (${Math.floor(attempts * 0.75)}s)`);
         }
-        
+
         if (attempts >= maxAttempts) {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
@@ -140,7 +141,7 @@ export default function StudentDashboard() {
     if (!intentId) return;
 
     const maxRetries = 30; // Poll for up to 60 seconds (30 * 2s)
-    
+
     if (retryCount === 0) {
       setPaymentStatus("processing");
       setMessage("🔄 Verifying your payment...");
@@ -159,15 +160,15 @@ export default function StudentDashboard() {
         setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
         setWalletBalance(res.data.newBalance);
         localStorage.removeItem("pendingPaymentIntent");
-        
+
         // Clear polling
         if (pollingRef.current) {
           clearTimeout(pollingRef.current);
           pollingRef.current = null;
         }
         return;
-      } 
-      
+      }
+
       // Payment still processing - continue polling
       if (res.data.status === "PROCESSING" || res.data.status === "INITIATED") {
         if (retryCount < maxRetries) {
@@ -191,7 +192,7 @@ export default function StudentDashboard() {
 
     } catch (err) {
       console.error("Verify error:", err);
-      
+
       if (retryCount < 5) {
         // Retry on network errors
         pollingRef.current = setTimeout(() => {
@@ -224,7 +225,7 @@ export default function StudentDashboard() {
       console.error("Error parsing user data:", e);
     }
 
-    if (!parsedUser || !parsedUser.id) {
+    if (!parsedUser || !parsedUser._id) {
       navigate("/login");
       return;
     }
@@ -237,7 +238,7 @@ export default function StudentDashboard() {
     verifyPendingPayment();
 
     // Register with socket
-    socket.emit("register-user", parsedUser.id);
+    socket.emit("register-user", parsedUser._id);
 
     axios
       .get(`${API_URL}/api/meetings/teachers`)
@@ -282,13 +283,13 @@ export default function StudentDashboard() {
     try {
       const res = await axios.post(
         `${API_URL}/api/meetings/request`,
-        { studentId: user.id, teacherId },
+        { studentId: user._id, teacherId },
         { headers: getAuthHeaders() },
       );
 
       if (res.data.success) {
         setMessage("✅ Meeting request sent! Waiting for teacher...");
-        fetchBalance(); // Refresh balance after booking
+        fetchBalance();
         socket.emit("meeting-request", {
           teacherId,
           studentEmail: user.email,
@@ -334,154 +335,168 @@ export default function StudentDashboard() {
   const hasPendingPayment = localStorage.getItem("pendingPaymentIntent");
 
   return (
-    <div className="p-10 font-sans min-h-screen bg-gray-50">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
-        <div className="flex gap-4 items-center">
-          {/* Wallet Balance Card */}
-          <div className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 py-3 rounded-xl shadow-lg">
-            <p className="text-sm opacity-80">Wallet Balance</p>
-            <p className="text-2xl font-bold">${walletBalance.toFixed(2)}</p>
+    <div className="flex min-h-screen bg-[#F5F5F5] font-['Source_Sans_Pro']">
+      {/* Left Sidebar */}
+      <aside className="w-56 bg-white border-r border-gray-100 flex flex-col fixed h-full">
+        {/* Logo */}
+        <div className="p-6 pb-4">
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            Murph
+          </h1>
+        </div>
+
+        {/* Profile Section */}
+        <div className="px-6 py-4 flex flex-col items-center border-b border-gray-100">
+          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-medium mb-2">
+            Profile
           </div>
+          <p className="text-sm font-semibold text-gray-900">
+            {user?.name || user?.email?.split("@")[0] || "Username"}
+          </p>
+        </div>
 
-          {/* Add Funds Button */}
-          <button
-            onClick={() => setShowTopupModal(true)}
-            className="px-5 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg cursor-pointer transition-colors font-semibold"
-          >
-            + Add Funds
-          </button>
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6">
+          <ul className="space-y-1">
+            {navItems.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    if (item.id === "wallet") {
+                      navigate("/wallet");
+                    }
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${activeTab === item.id
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
+        {/* Logout */}
+        <div className="p-4 border-t border-gray-100">
           <button
             onClick={logout}
-            className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all cursor-pointer"
           >
+            <LogOut className="w-5 h-5" />
             Logout
           </button>
         </div>
-      </div>
+      </aside>
 
-      {user && <p className="text-gray-600 mb-2">Welcome, {user.email}</p>}
+      {/* Main Content */}
+      <main className="flex-1 ml-56 p-10">
+        {/* Greeting */}
+        <div className="mb-10">
+          <h1 className="text-4xl font-bold text-gray-900">
+            <span className="text-purple-600">Hi there,</span>{" "}
+            {user?.name || user?.email?.split("@")[0] || "User"}!
+          </h1>
+          <p className="text-3xl font-bold text-gray-900 mt-1">
+            Ready to start learning?
+          </p>
+        </div>
 
-      {/* Payment Processing Banner */}
-      {paymentStatus === "processing" && (
-        <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
-            <p className="font-medium text-yellow-700">{message}</p>
+        {user && <p className="text-gray-600 mb-2">Welcome, {user.email}</p>}
+
+        {/* Payment Processing Banner */}
+        {paymentStatus === "processing" && (
+          <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+              <p className="font-medium text-yellow-700">{message}</p>
+            </div>
+            <button
+              onClick={handleSimulateComplete}
+              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
+            >
+              ⚡ Complete Now (Dev)
+            </button>
           </div>
-          <button
-            onClick={handleSimulateComplete}
-            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
-          >
-            ⚡ Complete Now (Dev)
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* Success/Error Message */}
-      {message && paymentStatus !== "processing" && (
-        <div className={`p-4 mb-4 rounded-lg ${
-          paymentStatus === "success" 
-            ? "bg-green-50 border border-green-200" 
-            : paymentStatus === "failed"
-            ? "bg-red-50 border border-red-200"
-            : "bg-blue-50 border border-blue-200"
-        }`}>
-          <p className={`font-medium ${
-            paymentStatus === "success" 
-              ? "text-green-700" 
+        {/* Success/Error Message */}
+        {message && paymentStatus !== "processing" && (
+          <div className={`p-4 mb-4 rounded-lg ${paymentStatus === "success"
+              ? "bg-green-50 border border-green-200"
               : paymentStatus === "failed"
-              ? "text-red-700"
-              : "text-blue-700"
-          }`}>{message}</p>
-        </div>
-      )}
+                ? "bg-red-50 border border-red-200"
+                : "bg-blue-50 border border-blue-200"
+            }`}>
+            <p className={`font-medium ${paymentStatus === "success"
+                ? "text-green-700"
+                : paymentStatus === "failed"
+                  ? "text-red-700"
+                  : "text-blue-700"
+              }`}>{message}</p>
+          </div>
+        )}
 
-      {/* Topup Modal */}
-      {showTopupModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
-            <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
+        {/* Topup Modal */}
+        {showTopupModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
+              <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
 
-            {/* Quick Amount Buttons */}
-            <div className="grid grid-cols-4 gap-2 mb-4">
-              {[5, 10, 25, 50].map((amt) => (
-                <button
-                  key={amt}
-                  onClick={() => setTopupAmount(amt.toString())}
-                  className={`py-2 rounded-lg font-semibold transition-colors ${topupAmount === amt.toString()
+              {/* Quick Amount Buttons */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {[5, 10, 25, 50].map((amt) => (
+                  <button
+                    key={amt}
+                    onClick={() => setTopupAmount(amt.toString())}
+                    className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
                       ? "bg-purple-600 text-white"
                       : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    }`}
+                      }`}
+                  >
+                    ${amt}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Amount Input */}
+              <input
+                type="number"
+                placeholder="Or enter custom amount"
+                value={topupAmount}
+                onChange={(e) => setTopupAmount(e.target.value)}
+                className="w-full p-3 border border-gray-200 rounded-lg mb-4 text-lg focus:outline-none focus:border-purple-500"
+                min="1"
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleTopup}
+                  disabled={walletLoading || !topupAmount}
+                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
                 >
-                  ${amt}
+                  {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
                 </button>
-              ))}
+                <button
+                  onClick={() => {
+                    setShowTopupModal(false);
+                    setTopupAmount("");
+                  }}
+                  className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-3 text-center">
+                Powered by Finternet • Secure Payment
+              </p>
             </div>
-
-            {/* Custom Amount Input */}
-            <input
-              type="number"
-              placeholder="Or enter custom amount"
-              value={topupAmount}
-              onChange={(e) => setTopupAmount(e.target.value)}
-              className="w-full p-3 border rounded-lg mb-4 text-lg"
-              min="1"
-            />
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleTopup}
-                disabled={walletLoading || !topupAmount}
-                className="flex-1 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors"
-              >
-                {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
-              </button>
-              <button
-                onClick={() => {
-                  setShowTopupModal(false);
-                  setTopupAmount("");
-                }}
-                className="px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 mt-3 text-center">
-              Powered by Finternet • Secure Payment
-            </p>
           </div>
-        </div>
-      )}
-
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">
-        Available Teachers
-      </h2>
-
-      {loading ? (
-        <p className="text-gray-500">Loading...</p>
-      ) : teachers.length === 0 ? (
-        <p className="text-gray-500">No teachers available</p>
-      ) : (
-        <ul className="list-none p-0">
-          {teachers.map((teacher) => (
-            <li
-              key={teacher._id}
-              className="p-4 mb-3 bg-white rounded-lg flex justify-between items-center shadow-sm border border-gray-100"
-            >
-              <span className="text-gray-700">{teacher.email}</span>
-              <button
-                onClick={() => requestMeeting(teacher._id)}
-                className="px-5 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg cursor-pointer transition-colors"
-              >
-                📞 Request Meeting ($5.00)
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+        )}
     </div>
   );
 }

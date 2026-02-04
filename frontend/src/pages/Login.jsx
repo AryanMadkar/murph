@@ -14,12 +14,19 @@ export default function Login() {
 
   // Auto-redirect if already logged in
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user"));
+    const userData = localStorage.getItem("user");
     const token = localStorage.getItem("token");
-    if (user && token) {
-      navigate(
-        user.role === "teacher" ? "/teacher-dashboard" : "/student-dashboard",
-      );
+    if (userData && userData !== "undefined" && token) {
+      try {
+        const user = JSON.parse(userData);
+        if (user) {
+          navigate(
+            user.role === "teacher" ? "/teacher-dashboard" : "/student-dashboard",
+          );
+        }
+      } catch (e) {
+        console.error("Error parsing user data:", e);
+      }
     }
   }, [navigate]);
 
@@ -188,11 +195,10 @@ export default function Login() {
                 type="button"
                 onClick={handleLogin}
                 disabled={loading}
-                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 ${
-                  loading
+                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 ${loading
                     ? "bg-black cursor-not-allowed opacity-50"
                     : "bg-black hover:bg-gray-900"
-                }`}
+                  }`}
               >
                 {loading ? (
                   <>

@@ -16,12 +16,19 @@ export default function Register() {
 
   // Auto-redirect if already logged in
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user"));
+    const userData = localStorage.getItem("user");
     const token = localStorage.getItem("token");
-    if (user && token) {
-      navigate(
-        user.role === "teacher" ? "/teacher-dashboard" : "/student-dashboard",
-      );
+    if (userData && userData !== "undefined" && token) {
+      try {
+        const user = JSON.parse(userData);
+        if (user) {
+          navigate(
+            user.role === "teacher" ? "/teacher-dashboard" : "/student-dashboard",
+          );
+        }
+      } catch (e) {
+        console.error("Error parsing user data:", e);
+      }
     }
   }, [navigate]);
 
@@ -109,22 +116,20 @@ export default function Register() {
                 <button
                   type="button"
                   onClick={() => setRole("student")}
-                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
-                    role === "student"
+                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${role === "student"
                       ? "bg-gray-900 text-white shadow-md"
                       : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   Student
                 </button>
                 <button
                   type="button"
                   onClick={() => setRole("teacher")}
-                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
-                    role === "teacher"
+                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${role === "teacher"
                       ? "bg-gray-900 text-white shadow-md"
                       : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   Teacher
                 </button>
@@ -251,11 +256,10 @@ export default function Register() {
                 type="button"
                 onClick={handleRegister}
                 disabled={loading}
-                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 ${
-                  loading
+                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 ${loading
                     ? "bg-gray-400 cursor-not-allowed hover:transform-none"
                     : "bg-gray-900 hover:bg-gray-800 hover:shadow-lg"
-                }`}
+                  }`}
               >
                 {loading ? (
                   <>

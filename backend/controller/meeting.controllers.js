@@ -50,35 +50,48 @@ const requestMeeting = async (req, res) => {
       });
     }
 
-    // Deduct from wallet
+    // ⭐ ESCROW: Deduct from wallet and hold in escrow
     student.walletBalance -= SESSION_PRICE_CENTS;
     await student.save();
 
-    // Record transaction
-    await WalletTransaction.create({
-      userId: studentId,
-      amount: SESSION_PRICE_CENTS,
-      type: "DEBIT",
-      status: "SUCCESS",
-      category: "SESSION",
-      description: "Session booking payment",
-      balanceAfter: student.walletBalance,
-    });
+    // Calculate fees
+    const platformFee = Math.round(SESSION_PRICE_CENTS * 0.10); // 10% platform fee
+    const teacherEarning = SESSION_PRICE_CENTS - platformFee;   // 90% to teacher
 
     const newMeeting = new Meeting({
       studentId,
       teacherId,
       status: "pending",
       sessionPrice: SESSION_PRICE_CENTS,
+      platformFee: platformFee,
+      teacherEarning: teacherEarning,
+      paymentStatus: "escrow", // ⭐ Funds held in escrow
     });
 
     await newMeeting.save();
 
+    // Record escrow lock transaction
+    await WalletTransaction.create({
+      userId: studentId,
+      amount: SESSION_PRICE_CENTS,
+      type: "DEBIT",
+      status: "SUCCESS",
+      category: "ESCROW_LOCK",
+      description: `Session payment held in escrow (Meeting #${newMeeting._id})`,
+      balanceAfter: student.walletBalance,
+      sessionId: newMeeting._id,
+    });
+
     res.status(201).json({
       success: true,
-      message: `Meeting request sent.`,
+      message: `Meeting request sent. $${(SESSION_PRICE_CENTS/100).toFixed(2)} held in escrow.`,
       meeting: newMeeting,
       walletBalance: student.walletBalance / 100,
+      escrowDetails: {
+        amount: SESSION_PRICE_CENTS / 100,
+        platformFee: platformFee / 100,
+        teacherWillReceive: teacherEarning / 100,
+      }
     });
   } catch (error) {
     console.error("Request meeting error:", error);
@@ -153,16 +166,16 @@ const acceptMeeting = async (req, res) => {
   }
 };
 
-// Complete meeting (No payment transfer)
+// Complete meeting and release escrow to teacher
 const completeMeeting = async (req, res) => {
   try {
     const { meetingId, roomId } = req.body;
 
     let meeting;
     if (meetingId) {
-      meeting = await Meeting.findById(meetingId);
+      meeting = await Meeting.findById(meetingId).populate('studentId', 'name email').populate('teacherId', 'name email');
     } else if (roomId) {
-      meeting = await Meeting.findOne({ roomId });
+      meeting = await Meeting.findOne({ roomId }).populate('studentId', 'name email').populate('teacherId', 'name email');
     }
 
     if (!meeting) {
@@ -179,8 +192,89 @@ const completeMeeting = async (req, res) => {
       });
     }
 
+    // ⭐ ESCROW RELEASE: Transfer funds to teacher
+    let bill = null;
+    if (meeting.paymentStatus === "escrow") {
+      const teacher = await User.findById(meeting.teacherId._id || meeting.teacherId);
+      
+      if (teacher) {
+        // Credit teacher's wallet (minus platform fee)
+        teacher.walletBalance = (teacher.walletBalance || 0) + meeting.teacherEarning;
+        await teacher.save();
+
+        // Record teacher earning transaction
+        await WalletTransaction.create({
+          userId: teacher._id,
+          amount: meeting.teacherEarning,
+          type: "CREDIT",
+          status: "SUCCESS",
+          category: "SESSION_EARNING",
+          description: `Session earning from ${meeting.studentId.name || meeting.studentId.email}`,
+          balanceAfter: teacher.walletBalance,
+          sessionId: meeting._id,
+        });
+
+        // Record platform fee transaction (for audit trail)
+        await WalletTransaction.create({
+          userId: teacher._id,
+          amount: meeting.platformFee,
+          type: "DEBIT",
+          status: "SUCCESS",
+          category: "PLATFORM_FEE",
+          description: `Platform fee (10%) for session #${meeting._id}`,
+          balanceAfter: teacher.walletBalance,
+          sessionId: meeting._id,
+        });
+
+        // Update escrow release transaction for student
+        await WalletTransaction.create({
+          userId: meeting.studentId._id || meeting.studentId,
+          amount: meeting.sessionPrice,
+          type: "DEBIT",
+          status: "SUCCESS",
+          category: "ESCROW_RELEASE",
+          description: `Escrow released to teacher for session #${meeting._id}`,
+          sessionId: meeting._id,
+        });
+
+        meeting.paymentStatus = "released";
+
+        // Generate detailed bill
+        bill = {
+          invoiceId: `INV-${meeting._id.toString().slice(-8).toUpperCase()}`,
+          date: new Date().toISOString(),
+          student: {
+            name: meeting.studentId.name || meeting.studentId.email,
+            email: meeting.studentId.email,
+          },
+          teacher: {
+            name: meeting.teacherId.name || meeting.teacherId.email,
+            email: meeting.teacherId.email,
+          },
+          session: {
+            id: meeting._id,
+            roomId: meeting.roomId,
+            startedAt: meeting.startedAt,
+            endedAt: new Date(),
+            durationMinutes: meeting.durationMinutes || Math.round((new Date() - new Date(meeting.startedAt || meeting.createdAt)) / 60000),
+          },
+          payment: {
+            sessionPrice: (meeting.sessionPrice / 100).toFixed(2),
+            platformFee: (meeting.platformFee / 100).toFixed(2),
+            platformFeePercent: "10%",
+            teacherEarning: (meeting.teacherEarning / 100).toFixed(2),
+            currency: "USD",
+          },
+          status: "PAID",
+        };
+      }
+    }
+
     meeting.status = "completed";
-    meeting.completedAt = new Date();
+    meeting.endedAt = new Date();
+    if (meeting.startedAt) {
+      meeting.durationMinutes = Math.round((meeting.endedAt - meeting.startedAt) / 60000);
+    }
     await meeting.save();
 
     // Find the associated attention session to return its ID
@@ -218,9 +312,10 @@ const completeMeeting = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Session completed.",
+      message: bill ? "Session completed. Payment released to teacher." : "Session completed.",
       meeting,
       attentionSessionId, // Return this for teacher redirection
+      bill, // Detailed payment bill
     });
   } catch (error) {
     console.error("Complete meeting error:", error);
@@ -231,7 +326,7 @@ const completeMeeting = async (req, res) => {
   }
 };
 
-// Cancel meeting and refund student
+// Cancel meeting and refund student from escrow
 const cancelMeeting = async (req, res) => {
   try {
     const { meetingId } = req.body;
@@ -252,12 +347,25 @@ const cancelMeeting = async (req, res) => {
       });
     }
 
-    // Refund student if payment was held
-    if (meeting.paymentStatus === "held") {
+    // ⭐ Refund student if payment was in escrow
+    if (meeting.paymentStatus === "escrow") {
       const student = await User.findById(meeting.studentId);
       if (student) {
-        student.walletBalance += meeting.amount;
+        // Return full amount from escrow
+        student.walletBalance += meeting.sessionPrice;
         await student.save();
+
+        // Record refund transaction
+        await WalletTransaction.create({
+          userId: student._id,
+          amount: meeting.sessionPrice,
+          type: "CREDIT",
+          status: "SUCCESS",
+          category: "REFUND",
+          description: `Escrow refund for cancelled session #${meeting._id}`,
+          balanceAfter: student.walletBalance,
+          sessionId: meeting._id,
+        });
       }
 
       meeting.paymentStatus = "refunded";
@@ -266,8 +374,9 @@ const cancelMeeting = async (req, res) => {
 
       res.json({
         success: true,
-        message: `Meeting cancelled. ₹${meeting.amount} refunded to your wallet.`,
+        message: `Meeting cancelled. $${(meeting.sessionPrice / 100).toFixed(2)} refunded to your wallet.`,
         meeting,
+        refundedAmount: meeting.sessionPrice / 100,
       });
     } else {
       meeting.status = "cancelled";
