@@ -8,181 +8,98 @@ const register = async (req, res) => {
   try {
     const { email, role, secretKey } = req.body;
 
-    // Security Check
-    const REQUIRED_SECRET = process.env.REGISTRATION_SECRET || "admin123";
-    if (secretKey !== REQUIRED_SECRET) {
-      return res.status(403).json({
-        success: false,
-        message: "Invalid registration secret. Please contact administrator.",
-      });
-    }
+    if (!email || !role || !req.file)
+      return res.status(400).json({ message: "Missing fields" });
 
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required",
-      });
-    }
+    if (secretKey !== process.env.REGISTRATION_SECRET)
+      return res.status(403).json({ message: "Invalid secret" });
 
-    if (!role || !["teacher", "student"].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: "Role is required and must be 'teacher' or 'student'",
-      });
-    }
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ message: "User exists" });
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "Image is required",
-      });
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "User already exists",
-      });
-    }
-
-    // Send image to Python AI service for encoding
     const formData = new FormData();
     formData.append("file", req.file.buffer, {
       filename: req.file.originalname,
       contentType: req.file.mimetype,
     });
 
-    const aiResponse = await axios.post(`${AI_SERVICE_URL}/encode`, formData, {
+    const aiRes = await axios.post(`${AI_SERVICE_URL}/encode`, formData, {
       headers: formData.getHeaders(),
-      timeout: 20000,
     });
 
-    if (!aiResponse.data.success) {
-      return res.status(400).json({
-        success: false,
-        message: aiResponse.data.error || "Face not detected",
-      });
-    }
+    if (!aiRes.data.success)
+      return res.status(400).json({ message: "Face not detected" });
 
-    // Save user to database
-    const newUser = new User({
+    const user = await User.create({
       email,
       role,
-      embedding: aiResponse.data.embedding,
+      embeddings: [aiRes.data.embedding],
     });
 
-    await newUser.save();
-
-    res.status(201).json({
+    res.json({
       success: true,
-      message: "User registered successfully",
-      user: {
-        email: newUser.email,
-        role: newUser.role,
-        id: newUser._id,
-      },
+      userId: user._id,
+      email,
+      role,
     });
-  } catch (error) {
-    console.error("Registration error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Internal server error",
-    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
 const login = async (req, res) => {
   try {
-    const { email } = req.body;
+    if (!req.file) return res.status(400).json({ message: "Image required" });
 
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required",
-      });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "Image is required",
-      });
-    }
-
-    // Find user in database
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    // Send image to Python AI service for encoding
     const formData = new FormData();
     formData.append("file", req.file.buffer, {
       filename: req.file.originalname,
       contentType: req.file.mimetype,
     });
 
-    const encodeResponse = await axios.post(
-      `${AI_SERVICE_URL}/encode`,
-      formData,
-      {
-        headers: formData.getHeaders(),
-        timeout: 10000,
-      },
-    );
-
-    if (!encodeResponse.data.success) {
-      return res.status(400).json({
-        success: false,
-        message: encodeResponse.data.error || "Face not detected",
-      });
-    }
-
-    // Match faces using Python AI service
-    const matchPayload = {
-      new_embedding: encodeResponse.data.embedding,
-      stored_embeddings: [user.embedding],
-    };
-
-    const matchResponse = await axios.post(
-      `${AI_SERVICE_URL}/match`,
-      matchPayload,
-      {
-        headers: { "Content-Type": "application/json" },
-        timeout: 10000,
-      },
-    );
-
-    if (matchResponse.data.match) {
-      res.json({
-        success: true,
-        message: "✅ Login successful",
-        match: true,
-        distance: matchResponse.data.distance,
-        user: {
-          email: user.email,
-          role: user.role,
-          id: user._id,
-        },
-      });
-    } else {
-      res.status(401).json({
-        success: false,
-        message: "❌ Face does not match",
-        match: false,
-      });
-    }
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Internal server error",
+    const encodeRes = await axios.post(`${AI_SERVICE_URL}/encode`, formData, {
+      headers: formData.getHeaders(),
     });
+
+    if (!encodeRes.data.success)
+      return res.status(400).json({ message: "Face not detected" });
+
+    const newEmbedding = encodeRes.data.embedding;
+
+    // get all users
+    const users = await User.find();
+
+    let bestMatch = null;
+    let bestDistance = Infinity;
+
+    for (const user of users) {
+      const matchRes = await axios.post(
+        `${AI_SERVICE_URL}/match`,
+        {
+          new_embedding: newEmbedding,
+          stored_embeddings: user.embeddings,
+        },
+        { headers: { "Content-Type": "application/json" } },
+      );
+
+      if (matchRes.data.match && matchRes.data.distance < bestDistance) {
+        bestDistance = matchRes.data.distance;
+        bestMatch = user;
+      }
+    }
+
+    if (!bestMatch)
+      return res.status(401).json({ message: "No face match found" });
+
+    res.json({
+      success: true,
+      userId: bestMatch._id,
+      email: bestMatch.email,
+      role: bestMatch.role,
+      distance: bestDistance,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 

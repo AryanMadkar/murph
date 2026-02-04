@@ -79,21 +79,29 @@ export default function TeacherDashboard() {
     <div className="p-10 font-sans min-h-screen bg-gray-50">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
-        <button
-          onClick={logout}
-          className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-        >
-          Logout
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={() => navigate("/wallet")}
+            className="px-5 py-2 cursor-pointer bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+          >
+            💰 Earnings: ₹{user?.walletBalance || 0}
+          </button>
+          <button
+            onClick={logout}
+            className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {user && <p className="text-gray-600 mb-4">Welcome, {user.email}</p>}
 
-      {message && (
-        <p className="font-bold text-green-500 mb-4">{message}</p>
-      )}
+      {message && <p className="font-bold text-green-500 mb-4">{message}</p>}
 
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Pending Meeting Requests</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        Pending Meeting Requests
+      </h2>
 
       {loading ? (
         <p className="text-gray-500">Loading...</p>
@@ -106,7 +114,9 @@ export default function TeacherDashboard() {
               key={req._id}
               className="p-4 mb-3 bg-orange-50 rounded-lg flex justify-between items-center shadow-sm border border-orange-100"
             >
-              <span className="text-gray-700">📧 Student: {req.studentId?.email || "Unknown"}</span>
+              <span className="text-gray-700">
+                📧 Student: {req.studentId?.email || "Unknown"}
+              </span>
               <button
                 onClick={() => acceptMeeting(req._id, req.studentId?._id)}
                 className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg cursor-pointer transition-colors"

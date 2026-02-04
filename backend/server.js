@@ -21,6 +21,7 @@ app.use(express.json());
 
 app.use("/api", authRoutes);
 app.use("/api/meetings", meetingRoutes);
+app.use("/api/payment", require("./routes/payment.routes"));
 
 app.get("/api/health", (req, res) => {
   res.json({

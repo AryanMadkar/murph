@@ -74,21 +74,29 @@ export default function StudentDashboard() {
     <div className="p-10 font-sans min-h-screen bg-gray-50">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
-        <button
-          onClick={logout}
-          className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-        >
-          Logout
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={() => navigate("/wallet")}
+            className="px-5 py-2 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+          >
+            💰 Wallet: ₹{user?.walletBalance || 0}
+          </button>
+          <button
+            onClick={logout}
+            className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {user && <p className="text-gray-600 mb-4">Welcome, {user.email}</p>}
 
-      {message && (
-        <p className="font-bold text-blue-500 mb-4">{message}</p>
-      )}
+      {message && <p className="font-bold text-blue-500 mb-4">{message}</p>}
 
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Available Teachers</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        Available Teachers
+      </h2>
 
       {loading ? (
         <p className="text-gray-500">Loading...</p>
