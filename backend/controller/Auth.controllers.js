@@ -11,9 +11,6 @@ const register = async (req, res) => {
     if (!email || !role || !req.file)
       return res.status(400).json({ message: "Missing fields" });
 
-    if (secretKey !== process.env.REGISTRATION_SECRET)
-      return res.status(403).json({ message: "Invalid secret" });
-
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: "User exists" });
 

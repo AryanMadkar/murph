@@ -7,7 +7,6 @@ const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 export default function Register() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("student");
-  const [secretKey, setSecretKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [cameraActive, setCameraActive] = useState(false);
@@ -49,7 +48,6 @@ export default function Register() {
       const formData = new FormData();
       formData.append("email", email);
       formData.append("role", role);
-      formData.append("secretKey", secretKey);
       formData.append("image", blob, "face.jpg");
 
       try {
@@ -58,7 +56,9 @@ export default function Register() {
           setMessage("✅ Registration successful! Redirecting...");
           localStorage.setItem("user", JSON.stringify(response.data.user));
           setTimeout(() => {
-            navigate(role === "teacher" ? "/teacher-dashboard" : "/student-dashboard");
+            navigate(
+              role === "teacher" ? "/teacher-dashboard" : "/student-dashboard",
+            );
           }, 1500);
         }
       } catch (err) {
@@ -95,18 +95,6 @@ export default function Register() {
           <option value="student">Student</option>
           <option value="teacher">Teacher</option>
         </select>
-
-        <input
-          type="password"
-          placeholder="Registration Secret Key"
-          value={secretKey}
-          onChange={(e) => setSecretKey(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "10px",
-            fontSize: "16px",
-          }}
-        />
       </div>
 
       <div className="mb-5">
@@ -143,12 +131,13 @@ export default function Register() {
         </button>
       )}
 
-      {message && (
-        <p className="mt-5 font-bold text-gray-800">{message}</p>
-      )}
+      {message && <p className="mt-5 font-bold text-gray-800">{message}</p>}
 
       <p className="mt-8 text-gray-600">
-        Already registered? <a href="/login" className="text-blue-500 hover:underline">Login here</a>
+        Already registered?{" "}
+        <a href="/login" className="text-blue-500 hover:underline">
+          Login here
+        </a>
       </p>
     </div>
   );
