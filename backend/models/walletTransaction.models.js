@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 /**
  * Wallet Transaction Ledger
- * 
+ *
  * CRITICAL for fintech:
  * ✔ Refund support
  * ✔ Audit trail
@@ -18,51 +18,52 @@ const walletTransactionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    
+
     // Amount in paise/cents (1 USD = 100)
     amount: {
       type: Number,
       required: true,
       min: 0,
     },
-    
+
     // Transaction type
     type: {
       type: String,
       enum: ["CREDIT", "DEBIT"],
       required: true,
     },
-    
+
     // Transaction status
     status: {
       type: String,
       enum: ["SUCCESS", "FAILED", "PENDING"],
       default: "PENDING",
     },
-    
+
     // Human-readable description
     description: {
       type: String,
       required: true,
     },
-    
+
     // Category for filtering/reporting
     category: {
       type: String,
       enum: [
-        "TOPUP",           // Wallet recharge
+        "TOPUP", // Wallet recharge
+        "SESSION", // Legacy session category
         "SESSION_PAYMENT", // Pay for session
         "SESSION_EARNING", // Teacher earns from session
-        "REFUND",          // Refund to student
-        "BONUS",           // Quality bonus for teacher
-        "WITHDRAWAL",      // Withdraw to bank
-        "PLATFORM_FEE",    // Murph platform fee
-        "ADJUSTMENT",      // Manual adjustment
-        "ESCROW_LOCK",     // Lock for escrow payment
+        "REFUND", // Refund to student
+        "BONUS", // Quality bonus for teacher
+        "WITHDRAWAL", // Withdraw to bank
+        "PLATFORM_FEE", // Murph platform fee
+        "ADJUSTMENT", // Manual adjustment
+        "ESCROW_LOCK", // Lock for escrow payment
       ],
       required: true,
     },
-    
+
     // Reference to related entities
     sessionId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -73,51 +74,51 @@ const walletTransactionSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    
+
     // Balance after this transaction (snapshot)
     balanceAfter: {
       type: Number,
       default: null,
     },
-    
+
     // External reference (Finternet transaction ID, etc.)
     externalRef: {
       type: String,
       default: null,
     },
-    
+
     // ⭐ CRITICAL: Processed flag to prevent double-crediting
     processed: {
       type: Boolean,
       default: false,
       index: true,
     },
-    
+
     // When the transaction was processed
     processedAt: {
       type: Date,
       default: null,
     },
-    
+
     // Failure reason if failed
     failureReason: {
       type: String,
       default: null,
     },
-    
+
     // Webhook data for audit
     webhookData: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
-    
+
     // Metadata for additional info
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Indexes for common queries
@@ -133,17 +134,23 @@ walletTransactionSchema.virtual("amountInDollars").get(function () {
 });
 
 // Static method to create a credit transaction
-walletTransactionSchema.statics.credit = async function (userId, amount, category, description, options = {}) {
+walletTransactionSchema.statics.credit = async function (
+  userId,
+  amount,
+  category,
+  description,
+  options = {},
+) {
   const User = mongoose.model("User");
   const user = await User.findById(userId);
-  
+
   if (!user) {
     throw new Error("User not found");
   }
-  
+
   // Add funds to user wallet
   await user.addFunds(amount);
-  
+
   // Create transaction record
   const transaction = await this.create({
     userId,
@@ -158,19 +165,25 @@ walletTransactionSchema.statics.credit = async function (userId, amount, categor
     externalRef: options.externalRef || null,
     metadata: options.metadata || {},
   });
-  
+
   return transaction;
 };
 
 // Static method to create a debit transaction
-walletTransactionSchema.statics.debit = async function (userId, amount, category, description, options = {}) {
+walletTransactionSchema.statics.debit = async function (
+  userId,
+  amount,
+  category,
+  description,
+  options = {},
+) {
   const User = mongoose.model("User");
   const user = await User.findById(userId);
-  
+
   if (!user) {
     throw new Error("User not found");
   }
-  
+
   if (!user.hasSufficientBalance(amount)) {
     // Create failed transaction record
     await this.create({
@@ -186,10 +199,10 @@ walletTransactionSchema.statics.debit = async function (userId, amount, category
     });
     throw new Error("Insufficient balance");
   }
-  
+
   // Deduct funds from user wallet
   await user.deductFunds(amount);
-  
+
   // Create transaction record
   const transaction = await this.create({
     userId,
@@ -204,17 +217,17 @@ walletTransactionSchema.statics.debit = async function (userId, amount, category
     externalRef: options.externalRef || null,
     metadata: options.metadata || {},
   });
-  
+
   return transaction;
 };
 
 // Static method to get user's transaction history
 walletTransactionSchema.statics.getHistory = function (userId, options = {}) {
   const query = { userId, status: "SUCCESS" };
-  
+
   if (options.type) query.type = options.type;
   if (options.category) query.category = options.category;
-  
+
   return this.find(query)
     .sort({ createdAt: -1 })
     .limit(options.limit || 50)
@@ -224,7 +237,12 @@ walletTransactionSchema.statics.getHistory = function (userId, options = {}) {
 // Static method to get transaction summary
 walletTransactionSchema.statics.getSummary = async function (userId) {
   const result = await this.aggregate([
-    { $match: { userId: new mongoose.Types.ObjectId(userId), status: "SUCCESS" } },
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        status: "SUCCESS",
+      },
+    },
     {
       $group: {
         _id: "$type",
@@ -233,9 +251,9 @@ walletTransactionSchema.statics.getSummary = async function (userId) {
       },
     },
   ]);
-  
+
   const summary = { credits: 0, debits: 0, creditCount: 0, debitCount: 0 };
-  
+
   result.forEach((r) => {
     if (r._id === "CREDIT") {
       summary.credits = r.total;
@@ -245,9 +263,9 @@ walletTransactionSchema.statics.getSummary = async function (userId) {
       summary.debitCount = r.count;
     }
   });
-  
+
   summary.net = summary.credits - summary.debits;
-  
+
   return summary;
 };
 
@@ -255,6 +273,9 @@ walletTransactionSchema.statics.getSummary = async function (userId) {
 walletTransactionSchema.set("toJSON", { virtuals: true });
 walletTransactionSchema.set("toObject", { virtuals: true });
 
-const WalletTransaction = mongoose.model("WalletTransaction", walletTransactionSchema);
+const WalletTransaction = mongoose.model(
+  "WalletTransaction",
+  walletTransactionSchema,
+);
 
 module.exports = WalletTransaction;

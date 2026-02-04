@@ -63,15 +63,31 @@ const login = async (req, res) => {
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
+      console.log("Login failed: User not found");
       return res.status(401).json({ message: "Incorrect email or password" });
+    }
+
+    // DEBUG: Check if user has password
+    if (!user.password) {
+      console.error("Login failed: User has no password (legacy user?)");
+      return res
+        .status(500)
+        .json({
+          message:
+            "Account setup incomplete (missing password). Please register again.",
+        });
     }
 
     // Check password
+    console.log("Verifying password for:", email);
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
+
     if (!isPasswordCorrect) {
+      console.log("Login failed: Incorrect password");
       return res.status(401).json({ message: "Incorrect email or password" });
     }
 
+    console.log("Password verified, generating token...");
     const token = generateToken(user._id);
 
     res.status(200).json({
@@ -82,7 +98,7 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("Login critical error:", error);
     res.status(500).json({ message: "Login failed", error: error.message });
   }
 };
