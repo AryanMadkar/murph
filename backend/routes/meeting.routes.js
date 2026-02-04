@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   requestMeeting,
   getPendingMeetings,
+  getStudentSessions,
   acceptMeeting,
   declineMeeting,
   getTeachers,
@@ -15,6 +16,9 @@ router.get("/teachers", getTeachers);
 
 // Student requests a meeting (⭐ deducts from wallet)
 router.post("/request", requestMeeting);
+
+// Get student's sessions (pending, active, completed)
+router.get("/student/:studentId", getStudentSessions);
 
 // Teacher gets pending requests
 router.get("/pending/:teacherId", getPendingMeetings);

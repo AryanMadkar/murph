@@ -84,7 +84,7 @@ const requestMeeting = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Meeting request sent. $${(SESSION_PRICE_CENTS/100).toFixed(2)} held in escrow.`,
+      message: `Meeting request sent. $${(SESSION_PRICE_CENTS / 100).toFixed(2)} held in escrow.`,
       meeting: newMeeting,
       walletBalance: student.walletBalance / 100,
       escrowDetails: {
@@ -118,6 +118,47 @@ const getPendingMeetings = async (req, res) => {
     });
   } catch (error) {
     console.error("Get pending meetings error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+// Get student's session requests and active meetings
+const getStudentSessions = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // Get pending requests (waiting for teacher to accept)
+    const pendingRequests = await Meeting.find({
+      studentId,
+      status: "pending",
+    }).populate("teacherId", "email name");
+
+    // Get accepted/active sessions (ready for video call)
+    const activeSessions = await Meeting.find({
+      studentId,
+      status: "accepted",
+    }).populate("teacherId", "email name");
+
+    // Get recent completed sessions (last 5)
+    const completedSessions = await Meeting.find({
+      studentId,
+      status: "completed",
+    })
+      .populate("teacherId", "email name")
+      .sort({ endedAt: -1 })
+      .limit(5);
+
+    res.json({
+      success: true,
+      pendingRequests,
+      activeSessions,
+      completedSessions,
+    });
+  } catch (error) {
+    console.error("Get student sessions error:", error);
     res.status(500).json({
       success: false,
       message: error.message || "Internal server error",
@@ -196,7 +237,7 @@ const completeMeeting = async (req, res) => {
     let bill = null;
     if (meeting.paymentStatus === "escrow") {
       const teacher = await User.findById(meeting.teacherId._id || meeting.teacherId);
-      
+
       if (teacher) {
         // Credit teacher's wallet (minus platform fee)
         teacher.walletBalance = (teacher.walletBalance || 0) + meeting.teacherEarning;
@@ -293,7 +334,7 @@ const completeMeeting = async (req, res) => {
       attentionSession.sessionEndTime = new Date();
       attentionSession.sessionDuration = Math.floor(
         (attentionSession.sessionEndTime - attentionSession.sessionStartTime) /
-          1000,
+        1000,
       );
 
       // Populate metrics using the shared calculator
@@ -501,7 +542,7 @@ const declineMeeting = async (req, res) => {
     // Refund student
     const refundAmount = meeting.sessionPrice || SESSION_PRICE_CENTS;
     const student = await User.findById(meeting.studentId);
-    
+
     if (student) {
       student.walletBalance += refundAmount;
       await student.save();
@@ -537,6 +578,7 @@ const declineMeeting = async (req, res) => {
 module.exports = {
   requestMeeting,
   getPendingMeetings,
+  getStudentSessions,
   acceptMeeting,
   declineMeeting,
   getTeachers,

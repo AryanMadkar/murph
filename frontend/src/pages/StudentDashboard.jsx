@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
-import { Home, Compass, Calendar, Wallet, LogOut } from "lucide-react";
+import { Home, Compass, Calendar, Wallet, LogOut, Clock, Video, CheckCircle, Loader2, XCircle } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -25,6 +25,11 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const pollingRef = useRef(null);
+
+  // Sessions state
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
 
   // Wallet state
   const [walletBalance, setWalletBalance] = useState(0);
@@ -50,6 +55,24 @@ export default function StudentDashboard() {
       }
     } catch (err) {
       console.error("Failed to fetch balance:", err);
+    }
+  };
+
+  // Fetch student sessions
+  const fetchSessions = async (studentId) => {
+    try {
+      setSessionsLoading(true);
+      const res = await axios.get(`${API_URL}/api/meetings/student/${studentId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.data.success) {
+        setPendingRequests(res.data.pendingRequests || []);
+        setActiveSessions(res.data.activeSessions || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch sessions:", err);
+    } finally {
+      setSessionsLoading(false);
     }
   };
 
@@ -243,6 +266,9 @@ export default function StudentDashboard() {
     // Fetch wallet balance
     fetchBalance();
 
+    // Fetch student sessions
+    fetchSessions(parsedUser._id);
+
     // Check for pending payment (after redirect back)
     verifyPendingPayment();
 
@@ -374,6 +400,8 @@ export default function StudentDashboard() {
                     setActiveTab(item.id);
                     if (item.id === "wallet") {
                       navigate("/wallet");
+                    } else if (item.id === "explore") {
+                      navigate("/explore");
                     }
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${activeTab === item.id
@@ -414,7 +442,96 @@ export default function StudentDashboard() {
           </p>
         </div>
 
-        {user && <p className="text-gray-600 mb-2">Welcome, {user.email}</p>}
+        {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
+
+        {/* Active Sessions - Join Video Call */}
+        {activeSessions.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <Video className="h-5 w-5 text-green-500" />
+              Live Sessions
+            </h2>
+            <div className="grid gap-4">
+              {activeSessions.map((session) => (
+                <div
+                  key={session._id}
+                  className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200 shadow-sm flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-xl">
+                      👨‍🏫
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900">
+                        Session with {session.teacherId?.name || session.teacherId?.email?.split('@')[0]}
+                      </h3>
+                      <p className="text-sm text-gray-500">{session.teacherId?.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/video-call/${session.roomId}`)}
+                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors cursor-pointer shadow-lg"
+                  >
+                    <Video className="h-5 w-5" />
+                    Join Call
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pending Session Requests */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+            <Clock className="h-5 w-5 text-orange-500" />
+            Pending Requests
+            {pendingRequests.length > 0 && (
+              <span className="text-sm font-medium text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                {pendingRequests.length}
+              </span>
+            )}
+          </h2>
+
+          {sessionsLoading ? (
+            <div className="flex items-center justify-center h-32 bg-white rounded-2xl border border-gray-100">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <span className="ml-2 text-gray-400">Loading sessions...</span>
+            </div>
+          ) : pendingRequests.length === 0 ? (
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
+              <CheckCircle className="h-10 w-10 text-gray-200 mx-auto mb-2" />
+              <p className="text-gray-400 font-medium">No pending requests</p>
+              <p className="text-sm text-gray-300">Request a session from the Explore page</p>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {pendingRequests.map((request) => (
+                <div
+                  key={request._id}
+                  className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-lg">
+                      ⏳
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        {request.teacherId?.name || request.teacherId?.email?.split('@')[0]}
+                      </h3>
+                      <p className="text-sm text-gray-400">{request.teacherId?.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                      Waiting for teacher...
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Payment Processing Banner */}
         {paymentStatus === "processing" && (

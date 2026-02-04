@@ -9,13 +9,14 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import VideoCall from "./pages/VideoCall";
 import SessionReview from "./pages/SessionReview";
 import Wallet from "./pages/Wallet";
+import Explore from "./pages/Explore";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* Main Landing Page*/}
-        <Route path="/" element={<Home />} /> 
+        <Route path="/" element={<Home />} />
 
         {/* Legacy System / Dashboard Routes */}
         <Route path="/login" element={<Login />} />
@@ -25,6 +26,7 @@ function App() {
         <Route path="/video-call/:roomId" element={<VideoCall />} />
         <Route path="/session-review/:sessionId" element={<SessionReview />} />
         <Route path="/wallet" element={<Wallet />} />
+        <Route path="/explore" element={<Explore />} />
       </Routes>
     </BrowserRouter>
   );
