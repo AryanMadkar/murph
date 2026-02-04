@@ -234,11 +234,10 @@ export default function StudentDashboard() {
                 <button
                   key={amt}
                   onClick={() => setTopupAmount(amt.toString())}
-                  className={`py-2 rounded-lg font-semibold transition-colors ${
-                    topupAmount === amt.toString()
+                  className={`py-2 rounded-lg font-semibold transition-colors ${topupAmount === amt.toString()
                       ? "bg-purple-600 text-white"
                       : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                  }`}
+                    }`}
                 >
                   ${amt}
                 </button>
