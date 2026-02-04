@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
 import { Search, Loader2, User, Video, LogOut } from "lucide-react";
@@ -227,18 +227,17 @@ export default function StudentDashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
             <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
-            
+
             {/* Quick Amount Buttons */}
             <div className="grid grid-cols-4 gap-2 mb-4">
               {[5, 10, 25, 50].map((amt) => (
                 <button
                   key={amt}
                   onClick={() => setTopupAmount(amt.toString())}
-                  className={`py-2 rounded-lg font-semibold transition-colors ${
-                    topupAmount === amt.toString()
+                  className={`py-2 rounded-lg font-semibold transition-colors ${topupAmount === amt.toString()
                       ? "bg-purple-600 text-white"
                       : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                  }`}
+                    }`}
                 >
                   ${amt}
                 </button>
