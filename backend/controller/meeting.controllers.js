@@ -1,6 +1,7 @@
 const Meeting = require("../models/meeting.models");
 const User = require("../models/user.models");
 const WalletTransaction = require("../models/walletTransaction.models");
+const { emitWalletUpdate } = require("../socket/socket");
 const { v4: uuidv4 } = require("uuid");
 
 // Session pricing (in cents)
@@ -279,6 +280,17 @@ const completeMeeting = async (req, res) => {
         });
 
         meeting.paymentStatus = "released";
+
+        // ⭐ Real-time notification to teacher
+        emitWalletUpdate(teacher._id.toString(), {
+          type: "CREDIT",
+          amount: meeting.teacherEarning / 100,
+          newBalance: teacher.walletBalance / 100,
+          description: `Session payment received from ${meeting.studentId.name || meeting.studentId.email}`,
+          timestamp: new Date(),
+        });
+
+        console.log(`✅ Teacher ${teacher.email} received $${(meeting.teacherEarning / 100).toFixed(2)} for session`);
 
         // Generate detailed bill
         bill = {
@@ -575,11 +587,116 @@ const declineMeeting = async (req, res) => {
   }
 };
 
+// ⭐ TEST ENDPOINT: Complete latest accepted meeting for a teacher (for testing payment)
+const testCompleteTeacherSession = async (req, res) => {
+  try {
+    const { teacherId } = req.body;
+
+    if (!teacherId) {
+      return res.status(400).json({
+        success: false,
+        message: "Teacher ID required",
+      });
+    }
+
+    // Find the latest accepted meeting for this teacher
+    const meeting = await Meeting.findOne({
+      teacherId,
+      status: "accepted",
+      paymentStatus: "escrow"
+    }).populate('studentId', 'name email').populate('teacherId', 'name email').sort({ createdAt: -1 });
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "No active sessions found for this teacher",
+      });
+    }
+
+    console.log(`🧪 TEST: Completing session ${meeting._id} for teacher ${meeting.teacherId.email}`);
+
+    // ⭐ ESCROW RELEASE: Transfer funds to teacher
+    let bill = null;
+    if (meeting.paymentStatus === "escrow") {
+      const teacher = await User.findById(meeting.teacherId._id || meeting.teacherId);
+      
+      if (teacher) {
+        console.log(`💰 Teacher balance before: $${(teacher.walletBalance / 100).toFixed(2)}`);
+        
+        // Credit teacher's wallet (minus platform fee)
+        teacher.walletBalance = (teacher.walletBalance || 0) + meeting.teacherEarning;
+        await teacher.save();
+
+        console.log(`💰 Teacher balance after: $${(teacher.walletBalance / 100).toFixed(2)}`);
+
+        // Record teacher earning transaction
+        await WalletTransaction.create({
+          userId: teacher._id,
+          amount: meeting.teacherEarning,
+          type: "CREDIT",
+          status: "SUCCESS",
+          category: "SESSION_EARNING",
+          description: `TEST: Session earning from ${meeting.studentId.name || meeting.studentId.email}`,
+          balanceAfter: teacher.walletBalance,
+          sessionId: meeting._id,
+        });
+
+        // Record platform fee transaction (for audit trail)
+        await WalletTransaction.create({
+          userId: teacher._id,
+          amount: meeting.platformFee,
+          type: "DEBIT", 
+          status: "SUCCESS",
+          category: "PLATFORM_FEE",
+          description: `Platform fee (10%) for session #${meeting._id}`,
+          balanceAfter: teacher.walletBalance,
+          sessionId: meeting._id,
+        });
+
+        meeting.paymentStatus = "released";
+
+        // ⭐ Real-time notification to teacher
+        emitWalletUpdate(teacher._id.toString(), {
+          type: "CREDIT",
+          amount: meeting.teacherEarning / 100,
+          newBalance: teacher.walletBalance / 100,
+          description: `Session payment received from ${meeting.studentId.name || meeting.studentId.email}`,
+          timestamp: new Date(),
+        });
+
+        console.log(`✅ Teacher ${teacher.email} received $${(meeting.teacherEarning / 100).toFixed(2)} for session`);
+      }
+    }
+
+    meeting.status = "completed";
+    meeting.endedAt = new Date();
+    await meeting.save();
+
+    res.json({
+      success: true,
+      message: `TEST: Session completed. Teacher received $${(meeting.teacherEarning / 100).toFixed(2)}`,
+      meeting,
+      teacherEarning: meeting.teacherEarning / 100,
+      teacherNewBalance: (teacher?.walletBalance || 0) / 100,
+    });
+
+  } catch (error) {
+    console.error("Test complete meeting error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   requestMeeting,
   getPendingMeetings,
   getStudentSessions,
   acceptMeeting,
   declineMeeting,
+  completeMeeting,
+  cancelMeeting,
   getTeachers,
+  testCompleteTeacherSession,
 };

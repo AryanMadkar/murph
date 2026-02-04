@@ -6,9 +6,12 @@ const {
   getStudentSessions,
   acceptMeeting,
   declineMeeting,
+  completeMeeting,
+  cancelMeeting,
   getTeachers,
   getWalletBalance,
   addMoney,
+  testCompleteTeacherSession,
 } = require("../controller/meeting.controllers");
 
 // Get all teachers (for student dashboard)
@@ -28,5 +31,14 @@ router.post("/accept/:meetingId", acceptMeeting);
 
 // Teacher declines a meeting (⭐ refunds student)
 router.post("/decline/:meetingId", declineMeeting);
+
+// Complete a meeting (⭐ releases escrow to teacher)
+router.post("/complete", completeMeeting);
+
+// Cancel a meeting (⭐ refunds student from escrow)
+router.post("/cancel", cancelMeeting);
+
+// ⭐ TEST: Complete latest session for a teacher (for testing payment)
+router.post("/test-complete", testCompleteTeacherSession);
 
 module.exports = router;
