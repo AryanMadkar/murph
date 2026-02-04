@@ -9,7 +9,7 @@ import cv2
 import tempfile
 import os
 from functools import lru_cache
-import face_recognition
+import face_recognition  
 from io import BytesIO
 
 # Suppress warnings

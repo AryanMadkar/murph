@@ -3,6 +3,27 @@ const socketIO = require("socket.io");
 // Track which user is in which socket
 const userSocketMap = new Map();
 
+// Store io instance for external access
+let ioInstance = null;
+
+// ⭐ Helper function to emit wallet update to a user
+const emitWalletUpdate = (userId, data) => {
+  if (!ioInstance) {
+    console.warn("[Socket] IO instance not initialized");
+    return false;
+  }
+  
+  const socketId = userSocketMap.get(userId.toString());
+  if (socketId) {
+    ioInstance.to(socketId).emit("wallet-updated", data);
+    console.log(`[Socket] Wallet update sent to user ${userId}:`, data);
+    return true;
+  } else {
+    console.log(`[Socket] User ${userId} not connected, wallet update not sent`);
+    return false;
+  }
+};
+
 const setupSocket = (server) => {
   const io = socketIO(server, {
     cors: {
@@ -11,12 +32,15 @@ const setupSocket = (server) => {
     },
   });
 
+  // Store io instance for external access
+  ioInstance = io;
+
   io.on("connection", (socket) => {
     console.log("New client connected:", socket.id);
 
     // Register user socket (for targeted notifications)
     socket.on("register-user", (userId) => {
-      userSocketMap.set(userId, socket.id);
+      userSocketMap.set(userId.toString(), socket.id);
       console.log(`User ${userId} registered with socket ${socket.id}`);
     });
 
@@ -140,4 +164,8 @@ const setupSocket = (server) => {
   return io;
 };
 
+// Export the helper function and userSocketMap for external use
 module.exports = setupSocket;
+module.exports.emitWalletUpdate = emitWalletUpdate;
+module.exports.userSocketMap = userSocketMap;
+module.exports.getIO = () => ioInstance;

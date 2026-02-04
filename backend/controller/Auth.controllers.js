@@ -2,12 +2,11 @@ const User = require("../models/user.models");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "murph_secret_key_change_in_production";
+const JWT_SECRET = process.env.JWT_SECRET || "murph_secret_key";
 
-const signToken = (id) => {
-  return jwt.sign({ id }, JWT_SECRET, {
-    expiresIn: "1d",
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId, userId: userId }, JWT_SECRET, {
+    expiresIn: "7d",
   });
 };
 
@@ -34,7 +33,7 @@ const register = async (req, res) => {
       password: hashedPassword,
     });
 
-    const token = signToken(newUser._id);
+    const token = generateToken(newUser._id);
 
     res.status(201).json({
       status: "success",
@@ -80,7 +79,7 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Incorrect email or password" });
     }
 
-    const token = signToken(user._id);
+    const token = generateToken(user._id);
 
     res.status(200).json({
       status: "success",

@@ -21,15 +21,23 @@ const meetingSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    // ⭐ STEP 6 - Payment tracking
+    // ⭐ Escrow Payment System
     sessionPrice: {
       type: Number,
       default: 500, // in cents ($5.00)
     },
+    platformFee: {
+      type: Number,
+      default: 50, // 10% platform fee (50 cents)
+    },
+    teacherEarning: {
+      type: Number,
+      default: 450, // 90% to teacher ($4.50)
+    },
     paymentStatus: {
       type: String,
-      enum: ["paid", "refunded", "pending"],
-      default: "paid",
+      enum: ["escrow", "released", "refunded", "pending"],
+      default: "pending",
     },
     // Session timing (for pay-per-minute if needed later)
     startedAt: {

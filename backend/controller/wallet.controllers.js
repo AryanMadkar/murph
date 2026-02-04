@@ -2,6 +2,7 @@ const User = require("../models/user.models");
 const WalletTransaction = require("../models/walletTransaction.models");
 const axios = require("axios");
 const crypto = require("crypto");
+const { emitWalletUpdate } = require("../socket/socket");
 
 // ⭐ Finternet API Config
 const FINTERNET_BASE_URL = "https://api.fmm.finternetlab.io";
@@ -98,7 +99,7 @@ const createTopupIntent = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // ⭐ Create Finternet Payment Intent
+    // ⭐ Create Finternet Payment Intent (returnUrl is handled by Finternet's payment page)
     const payload = {
       amount: amount.toString(),
       currency: "USD",
@@ -265,10 +266,18 @@ const verifyTopup = async (req, res) => {
     const response = await finternetAPI.get(`/api/v1/payment-intents/${intentId}`);
     const intent = response.data.data || response.data;
 
-    console.log("[Verify] Finternet status:", intent.status);
+    console.log("[Verify] Finternet status:", intent.status, "settlementStatus:", intent.settlementStatus);
 
-    // ⭐ STEP 3: Only credit if status = COMPLETED or SETTLED
-    if (intent.status === "COMPLETED" || intent.status === "SETTLED") {
+    // ⭐ STEP 3: Check if payment is completed
+    // Finternet uses: INITIATED → PROCESSING → COMPLETED/SETTLED
+    // For mock/sandbox, also accept when settlementStatus is COMPLETED
+    const isCompleted = 
+      intent.status === "COMPLETED" || 
+      intent.status === "SETTLED" ||
+      intent.settlementStatus === "COMPLETED" ||
+      intent.settlementStatus === "SETTLED";
+
+    if (isCompleted) {
       
       const amount = parseFloat(intent.amount);
       const amountCents = Math.round(amount * 100);
@@ -290,6 +299,15 @@ const verifyTopup = async (req, res) => {
           processedAt: new Date()
         }
       );
+
+      // ⭐ STEP 6: Emit real-time socket event
+      emitWalletUpdate(userId.toString(), {
+        type: "CREDIT",
+        amount: amount,
+        newBalance: user.walletBalance / 100,
+        description: `Wallet top-up - $${amount}`,
+        timestamp: new Date()
+      });
 
       console.log("[Verify] ✅ Wallet credited:", amount, "New balance:", user.walletBalance / 100);
 
@@ -399,6 +417,15 @@ const webhookHandler = async (req, res) => {
       tx.processedAt = new Date();
       tx.webhookData = event;
       await tx.save();
+
+      // ⭐ STEP 5: Emit real-time socket event to user
+      emitWalletUpdate(tx.userId.toString(), {
+        type: "CREDIT",
+        amount: tx.amount / 100,
+        newBalance: user.walletBalance / 100,
+        description: tx.description,
+        timestamp: new Date()
+      });
 
       console.log("[Webhook] ✅ Wallet credited via webhook:", tx.amount / 100);
     }
@@ -658,6 +685,71 @@ const debitWallet = async (req, res) => {
   }
 };
 
+/**
+ * ⭐ Simulate Payment Completion (DEV ONLY)
+ * POST /api/wallet/simulate-complete
+ * 
+ * For testing when Finternet mock API is slow
+ */
+const simulatePaymentComplete = async (req, res) => {
+  try {
+    const { intentId } = req.body;
+    const userId = req.user._id || req.user.id;
+
+    if (!intentId) {
+      return res.status(400).json({ error: "Intent ID required" });
+    }
+
+    // Find pending transaction
+    const tx = await WalletTransaction.findOne({
+      externalRef: intentId,
+      userId,
+      processed: false
+    });
+
+    if (!tx) {
+      return res.status(404).json({ error: "Pending transaction not found" });
+    }
+
+    // Credit wallet
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { walletBalance: tx.amount } },
+      { new: true }
+    );
+
+    // Mark as processed
+    tx.status = "SUCCESS";
+    tx.processed = true;
+    tx.balanceAfter = user.walletBalance;
+    tx.processedAt = new Date();
+    tx.metadata = { ...tx.metadata, simulatedCompletion: true };
+    await tx.save();
+
+    // ⭐ Emit real-time socket event
+    emitWalletUpdate(userId.toString(), {
+      type: "CREDIT",
+      amount: tx.amount / 100,
+      newBalance: user.walletBalance / 100,
+      description: tx.description,
+      timestamp: new Date()
+    });
+
+    console.log("[Simulate] ✅ Payment simulated:", tx.amount / 100);
+
+    res.json({
+      success: true,
+      amountCredited: tx.amount / 100,
+      newBalance: user.walletBalance / 100,
+      message: "Payment simulated successfully"
+    });
+
+  } catch (error) {
+    console.error("[Simulate] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // 📤 EXPORTS
 // ═══════════════════════════════════════════════════════════════════
@@ -686,5 +778,6 @@ module.exports = {
   debitWallet,
   
   // Utility
-  checkFinternetStatus
+  checkFinternetStatus,
+  simulatePaymentComplete
 };

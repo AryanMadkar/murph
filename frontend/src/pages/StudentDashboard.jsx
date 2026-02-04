@@ -1,17 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
-import {
-  Home,
-  Search,
-  User,
-  Wallet,
-  Plus,
-  Image,
-  Send,
-  LogOut,
-} from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const socket = io(API_URL);
@@ -25,12 +15,14 @@ export default function StudentDashboard() {
   const [chatInput, setChatInput] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const pollingRef = useRef(null);
 
   // Wallet state
   const [walletBalance, setWalletBalance] = useState(0);
   const [topupAmount, setTopupAmount] = useState("");
   const [walletLoading, setWalletLoading] = useState(false);
   const [showTopupModal, setShowTopupModal] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null); // null, 'processing', 'success', 'failed'
 
   // Get auth token
   const getAuthHeaders = () => {
@@ -69,8 +61,16 @@ export default function StudentDashboard() {
       );
 
       if (res.data.success && res.data.paymentUrl) {
+        // ⭐ Store intentId for verification
         localStorage.setItem("pendingPaymentIntent", res.data.intentId);
-        window.location.href = res.data.paymentUrl;
+        // ⭐ Open Finternet payment in new tab (user stays on dashboard)
+        window.open(res.data.paymentUrl, "_blank");
+        setMessage("💳 Complete payment in the new tab. Your balance will update automatically!");
+        setPaymentStatus("processing");
+        setShowTopupModal(false);
+        setTopupAmount("");
+        // ⭐ Start fast polling immediately (every 1.5 seconds)
+        startFastPolling(res.data.intentId);
       } else if (res.data.success && res.data.intentId) {
         localStorage.setItem("pendingPaymentIntent", res.data.intentId);
         setMessage("📝 Payment intent created. Complete payment to add funds.");
@@ -87,12 +87,66 @@ export default function StudentDashboard() {
     }
   };
 
-  // Verify payment after redirect back
-  const verifyPendingPayment = async () => {
+  // ⭐ Fast polling for instant updates (every 1.5 seconds)
+  const startFastPolling = (intentId) => {
+    // Clear any existing polling
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+    }
+
+    let attempts = 0;
+    const maxAttempts = 120; // 90 seconds max (120 * 750ms)
+
+    pollingRef.current = setInterval(async () => {
+      attempts++;
+
+      try {
+        const res = await axios.post(
+          `${API_URL}/api/wallet/verify-topup`,
+          { intentId },
+          { headers: getAuthHeaders() }
+        );
+
+        if (res.data.success && res.data.amountCredited) {
+          // ✅ Payment completed!
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setPaymentStatus("success");
+          setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
+          setWalletBalance(res.data.newBalance);
+          localStorage.removeItem("pendingPaymentIntent");
+          return;
+        }
+
+        // Update status message
+        if (attempts % 8 === 0) { // Update message every 6 seconds
+          setMessage(`💳 Waiting for payment... (${Math.floor(attempts * 0.75)}s)`);
+        }
+
+        if (attempts >= maxAttempts) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setPaymentStatus(null);
+          setMessage("⏰ Still waiting for payment. Click 'Add Funds' to check status.");
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }, 750); // Poll every 750ms for instant updates
+  };
+
+  // ⭐ STEP 5 - Verify payment after redirect back (with polling for PROCESSING status)
+  const verifyPendingPayment = async (retryCount = 0) => {
     const intentId = localStorage.getItem("pendingPaymentIntent");
     if (!intentId) return;
 
-    setMessage("🔄 Verifying your payment...");
+    const maxRetries = 30; // Poll for up to 60 seconds (30 * 2s)
+
+    if (retryCount === 0) {
+      setPaymentStatus("processing");
+      setMessage("🔄 Verifying your payment...");
+    }
+
     try {
       const res = await axios.post(
         `${API_URL}/api/wallet/verify-topup`,
@@ -100,23 +154,65 @@ export default function StudentDashboard() {
         { headers: getAuthHeaders() },
       );
 
-      if (res.data.success) {
-        setMessage(`✅ $${res.data.amountCredited} added to your wallet!`);
+      if (res.data.success && res.data.amountCredited) {
+        // ✅ Payment completed!
+        setPaymentStatus("success");
+        setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
         setWalletBalance(res.data.newBalance);
         localStorage.removeItem("pendingPaymentIntent");
-        fetchBalance();
-      } else if (res.data.status === "PENDING") {
-        setMessage("⏳ Payment still processing...");
+
+        // Clear polling
+        if (pollingRef.current) {
+          clearTimeout(pollingRef.current);
+          pollingRef.current = null;
+        }
+        return;
       }
-    } catch (err) {
-      if (err.response?.data?.error === "Payment failed") {
-        setMessage("❌ Payment was not completed.");
+
+      // Payment still processing - continue polling
+      if (res.data.status === "PROCESSING" || res.data.status === "INITIATED") {
+        if (retryCount < maxRetries) {
+          setMessage(`⏳ Payment processing... (${retryCount + 1}/${maxRetries})`);
+          pollingRef.current = setTimeout(() => {
+            verifyPendingPayment(retryCount + 1);
+          }, 2000); // Poll every 2 seconds
+        } else {
+          setPaymentStatus("failed");
+          setMessage("⏰ Payment verification timed out. Please check your transaction history.");
+        }
+        return;
+      }
+
+      // Payment failed or unknown status
+      if (res.data.status === "FAILED") {
+        setPaymentStatus("failed");
+        setMessage("❌ Payment failed. Please try again.");
         localStorage.removeItem("pendingPaymentIntent");
+      }
+
+    } catch (err) {
+      console.error("Verify error:", err);
+
+      if (retryCount < 5) {
+        // Retry on network errors
+        pollingRef.current = setTimeout(() => {
+          verifyPendingPayment(retryCount + 1);
+        }, 2000);
       } else {
-        setMessage("⏳ Payment verification pending...");
+        setPaymentStatus("failed");
+        setMessage("❌ " + (err.response?.data?.error || "Verification failed"));
       }
     }
   };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -160,8 +256,26 @@ export default function StudentDashboard() {
       setTimeout(() => navigate(`/video-call/${roomId}`), 1500);
     });
 
+    // ⭐ Real-time wallet update listener (premium UX!)
+    socket.on("wallet-updated", (data) => {
+      console.log("💰 Real-time wallet update received:", data);
+      setWalletBalance(data.newBalance);
+      setPaymentStatus("success");
+      setMessage(`✅ $${data.amount.toFixed(2)} added to your wallet!`);
+      setShowTopupModal(false);
+      setTopupAmount("");
+      // Clear pending payment
+      localStorage.removeItem("pendingPaymentIntent");
+      // Stop any polling
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    });
+
     return () => {
       socket.off("meeting-accepted");
+      socket.off("wallet-updated");
     };
   }, [navigate]);
 
@@ -194,12 +308,31 @@ export default function StudentDashboard() {
     navigate("/login");
   };
 
-  const navItems = [
-    { id: "home", label: "Home", icon: Home },
-    { id: "explore", label: "Explore", icon: Search },
-    { id: "sessions", label: "My Sessions", icon: User },
-    { id: "wallet", label: "Wallet", icon: Wallet },
-  ];
+  // Simulate payment completion (DEV ONLY)
+  const handleSimulateComplete = async () => {
+    const intentId = localStorage.getItem("pendingPaymentIntent");
+    if (!intentId) return;
+
+    try {
+      const res = await axios.post(
+        `${API_URL}/api/wallet/simulate-complete`,
+        { intentId },
+        { headers: getAuthHeaders() }
+      );
+
+      if (res.data.success) {
+        setPaymentStatus("success");
+        setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
+        setWalletBalance(res.data.newBalance);
+        localStorage.removeItem("pendingPaymentIntent");
+      }
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Check if there's a pending payment
+  const hasPendingPayment = localStorage.getItem("pendingPaymentIntent");
 
   return (
     <div className="flex min-h-screen bg-[#F5F5F5] font-['Source_Sans_Pro']">
@@ -235,8 +368,8 @@ export default function StudentDashboard() {
                     }
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${activeTab === item.id
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                 >
                   <item.icon className="w-5 h-5" />
@@ -272,149 +405,98 @@ export default function StudentDashboard() {
           </p>
         </div>
 
-        {/* Status Message */}
-        {message && (
-          <div className="mb-6 p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
-            <p className="font-medium text-gray-800">{message}</p>
+        {user && <p className="text-gray-600 mb-2">Welcome, {user.email}</p>}
+
+        {/* Payment Processing Banner */}
+        {paymentStatus === "processing" && (
+          <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+              <p className="font-medium text-yellow-700">{message}</p>
+            </div>
+            <button
+              onClick={handleSimulateComplete}
+              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
+            >
+              ⚡ Complete Now (Dev)
+            </button>
           </div>
         )}
 
-        {/* Chat Input Box */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden max-w-3xl">
-          <textarea
-            placeholder="Ask me anything about your learning journey..."
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            className="w-full p-6 text-gray-700 placeholder-gray-400 resize-none focus:outline-none min-h-[200px] text-lg"
-            maxLength={1000}
-          />
-
-          {/* Input Footer */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50">
-            <div className="flex items-center gap-4">
-              <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm font-medium transition-colors">
-                <Plus className="w-4 h-4" />
-                Add Attachment
-              </button>
-              <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm font-medium transition-colors">
-                <Image className="w-4 h-4" />
-                Use Image
-              </button>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-400">
-                {chatInput.length}/1000
-              </span>
-              <button
-                className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!chatInput.trim()}
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Available Teachers Section (When Explore is active) */}
-        {activeTab === "explore" && (
-          <div className="mt-10">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
-              Available Teachers
-            </h2>
-
-            {loading ? (
-              <p className="text-gray-500">Loading...</p>
-            ) : teachers.length === 0 ? (
-              <p className="text-gray-500">No teachers available</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {teachers.map((teacher) => (
-                  <div
-                    key={teacher._id}
-                    className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-xl">
-                        👨‍🏫
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {teacher.name || teacher.email?.split("@")[0]}
-                        </p>
-                        <p className="text-sm text-gray-500">{teacher.email}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => requestMeeting(teacher._id)}
-                      className="w-full py-3 bg-black text-white font-medium rounded-xl hover:bg-gray-800 transition-colors"
-                    >
-                      Request Session ($5.00)
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Success/Error Message */}
+        {message && paymentStatus !== "processing" && (
+          <div className={`p-4 mb-4 rounded-lg ${paymentStatus === "success"
+              ? "bg-green-50 border border-green-200"
+              : paymentStatus === "failed"
+                ? "bg-red-50 border border-red-200"
+                : "bg-blue-50 border border-blue-200"
+            }`}>
+            <p className={`font-medium ${paymentStatus === "success"
+                ? "text-green-700"
+                : paymentStatus === "failed"
+                  ? "text-red-700"
+                  : "text-blue-700"
+              }`}>{message}</p>
           </div>
         )}
-      </main>
 
-      {/* Topup Modal */}
-      {showTopupModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
-            <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
+        {/* Topup Modal */}
+        {showTopupModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
+              <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
 
-            {/* Quick Amount Buttons */}
-            <div className="grid grid-cols-4 gap-2 mb-4">
-              {[5, 10, 25, 50].map((amt) => (
-                <button
-                  key={amt}
-                  onClick={() => setTopupAmount(amt.toString())}
-                  className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
+              {/* Quick Amount Buttons */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {[5, 10, 25, 50].map((amt) => (
+                  <button
+                    key={amt}
+                    onClick={() => setTopupAmount(amt.toString())}
+                    className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
                       ? "bg-purple-600 text-white"
                       : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    }`}
+                      }`}
+                  >
+                    ${amt}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Amount Input */}
+              <input
+                type="number"
+                placeholder="Or enter custom amount"
+                value={topupAmount}
+                onChange={(e) => setTopupAmount(e.target.value)}
+                className="w-full p-3 border border-gray-200 rounded-lg mb-4 text-lg focus:outline-none focus:border-purple-500"
+                min="1"
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleTopup}
+                  disabled={walletLoading || !topupAmount}
+                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
                 >
-                  ${amt}
+                  {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
                 </button>
-              ))}
+                <button
+                  onClick={() => {
+                    setShowTopupModal(false);
+                    setTopupAmount("");
+                  }}
+                  className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-3 text-center">
+                Powered by Finternet • Secure Payment
+              </p>
             </div>
-
-            {/* Custom Amount Input */}
-            <input
-              type="number"
-              placeholder="Or enter custom amount"
-              value={topupAmount}
-              onChange={(e) => setTopupAmount(e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-lg mb-4 text-lg focus:outline-none focus:border-purple-500"
-              min="1"
-            />
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleTopup}
-                disabled={walletLoading || !topupAmount}
-                className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
-              >
-                {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
-              </button>
-              <button
-                onClick={() => {
-                  setShowTopupModal(false);
-                  setTopupAmount("");
-                }}
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 mt-3 text-center">
-              Powered by Finternet • Secure Payment
-            </p>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }
