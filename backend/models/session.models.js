@@ -71,13 +71,13 @@ const sessionSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
-        "RESERVED",      // Payment intent created
-        "READY",         // Payment confirmed, ready to start
-        "ACTIVE",        // Session in progress
-        "PAUSED",        // Session paused
-        "COMPLETED",     // Session ended normally
-        "CANCELLED",     // Cancelled before start
-        "FAILED",        // Payment failed
+        "RESERVED", // Payment intent created
+        "READY", // Payment confirmed, ready to start
+        "ACTIVE", // Session in progress
+        "PAUSED", // Session paused
+        "COMPLETED", // Session ended normally
+        "CANCELLED", // Cancelled before start
+        "FAILED", // Payment failed
       ],
       default: "RESERVED",
     },
@@ -117,8 +117,21 @@ const sessionSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // AI Generated Content
+    audio_url: {
+      type: String,
+      default: null,
+    },
+    transcription: {
+      type: String,
+      default: null,
+    },
+    notes: {
+      type: String, // Markdown content
+      default: null,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Indexes for common queries

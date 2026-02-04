@@ -16,6 +16,8 @@ import {
   BookOpen,
   ArrowRight,
   Plus,
+  FileText,
+  FileSearch,
 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -33,11 +35,25 @@ const socket = io(API_URL);
 export default function StudentDashboard() {
   const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("home");
+  const [teachers, setTeachers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState([]);
+  const [recLoading, setRecLoading] = useState(true);
+  const [myMaterials, setMyMaterials] = useState([]);
+  const [buyingMaterial, setBuyingMaterial] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const pollingRef = useRef(null);
 
-
+  // Notes state
+  const [selectedNote, setSelectedNote] = useState(null);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Wallet state
   const [walletBalance, setWalletBalance] = useState(0);
@@ -45,6 +61,12 @@ export default function StudentDashboard() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null); // null, 'processing', 'success', 'failed'
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
 
   // Get auth token
   const getAuthHeaders = () => {
@@ -108,11 +130,6 @@ export default function StudentDashboard() {
       setRecLoading(false);
     }
   };
-
-  const [recommendations, setRecommendations] = useState([]);
-  const [recLoading, setRecLoading] = useState(false);
-  const [myMaterials, setMyMaterials] = useState([]);
-  const [buyingMaterial, setBuyingMaterial] = useState(null);
 
   const handlePurchaseMaterial = async (materialId, price) => {
     if (walletBalance < price / 100) {
@@ -329,6 +346,23 @@ export default function StudentDashboard() {
     };
   }, []);
 
+  // Fetch session history (for My Sessions)
+  const fetchHistory = async (studentId) => {
+    setHistoryLoading(true);
+    try {
+      const res = await axios.get(
+        `${API_URL}/api/meetings/student/${studentId}/history`,
+      );
+      if (res.data.success) {
+        setSessionHistory(res.data.sessions);
+      }
+    } catch (err) {
+      console.error("Failed to fetch session history:", err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
     const userData = localStorage.getItem("user");
     let parsedUser = null;
@@ -346,26 +380,33 @@ export default function StudentDashboard() {
     }
     setUser(parsedUser);
 
-    // Fetch wallet balance
+    // Initial data fetch
     fetchBalance();
-
-    // Fetch all app data (sessions, etc.)
     fetchAppData(parsedUser._id);
-
-    // Check for pending payment (after redirect back)
+    fetchHistory(parsedUser._id);
     verifyPendingPayment();
 
     // Register with socket
     socket.emit("register-user", parsedUser._id);
 
+    // Fetch teachers list
+    axios
+      .get(`${API_URL}/api/meetings/teachers`)
+      .then((res) => {
+        setTeachers(res.data.teachers);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setMessage("Error loading teachers: " + err.message);
+        setLoading(false);
+      });
 
-
+    // Socket listeners
     socket.on("meeting-accepted", ({ roomId }) => {
       setMessage("🎉 Meeting accepted! Joining call...");
       setTimeout(() => navigate(`/video-call/${roomId}`), 1500);
     });
 
-    // ⭐ Real-time wallet update listener (premium UX!)
     socket.on("wallet-updated", (data) => {
       console.log("💰 Real-time wallet update received:", data);
       setWalletBalance(data.newBalance);
@@ -373,9 +414,7 @@ export default function StudentDashboard() {
       setMessage(`✅ $${data.amount.toFixed(2)} added to your wallet!`);
       setShowTopupModal(false);
       setTopupAmount("");
-      // Clear pending payment
       localStorage.removeItem("pendingPaymentIntent");
-      // Stop any polling
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
@@ -387,10 +426,6 @@ export default function StudentDashboard() {
       socket.off("wallet-updated");
     };
   }, [navigate]);
-
-
-
-
 
   // Simulate payment completion (DEV ONLY)
   const handleSimulateComplete = async () => {
@@ -494,7 +529,7 @@ export default function StudentDashboard() {
           </p>
         </div>
 
-      {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
+        {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
 
         {activeTab === "home" && (
           <div className="space-y-6">
@@ -744,24 +779,91 @@ export default function StudentDashboard() {
                 </div>
               )}
             </div>
+
+            {/* Session History */}
+            <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-blue-500" />
+                Session History
+              </h2>
+
+              {historyLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                </div>
+              ) : sessionHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400 font-medium">
+                    No session history found
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {sessionHistory
+                    .filter((s) => s.status === "completed")
+                    .map((session) => (
+                      <div
+                        key={session._id}
+                        className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between hover:bg-white transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-lg">
+                            🎓
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900 focus:outline-none">
+                              {session.teacherId?.name || "Expert Teacher"}
+                            </h3>
+                            <p className="text-[10px] text-gray-400">
+                              {new Date(
+                                session.startedAt || session.createdAt,
+                              ).toLocaleDateString()}{" "}
+                              • {session.durationMinutes} mins
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {session.notes ? (
+                            <button
+                              onClick={() => {
+                                setSelectedNote(session);
+                                setShowNotesModal(true);
+                              }}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                            >
+                              <FileText className="h-3 w-3" />
+                              View Notes
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2 text-[10px] text-gray-400 italic bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              AI Notes Processing...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-      {/* Payment Processing Banner */}
-      {paymentStatus === "processing" && (
-        <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
-            <p className="font-medium text-yellow-700">{message}</p>
+        {/* Payment Processing Banner */}
+        {paymentStatus === "processing" && (
+          <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+              <p className="font-medium text-yellow-700">{message}</p>
+            </div>
+            <button
+              onClick={handleSimulateComplete}
+              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
+            >
+              ⚡ Complete Now (Dev)
+            </button>
           </div>
-          <button
-            onClick={handleSimulateComplete}
-            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
-          >
-            ⚡ Complete Now (Dev)
-          </button>
-        </div>
-      )}
+        )}
 
         {/* Success/Error Message */}
         {message && paymentStatus !== "processing" && (
@@ -787,6 +889,7 @@ export default function StudentDashboard() {
             </p>
           </div>
         )}
+      </main>
 
       {/* Topup Modal */}
       {showTopupModal && (
@@ -794,22 +897,22 @@ export default function StudentDashboard() {
           <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
             <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
 
-              {/* Quick Amount Buttons */}
-              <div className="grid grid-cols-4 gap-2 mb-4">
-                {[5, 10, 25, 50].map((amt) => (
-                  <button
-                    key={amt}
-                    onClick={() => setTopupAmount(amt.toString())}
-                    className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${
-                      topupAmount === amt.toString()
-                        ? "bg-purple-600 text-white"
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    }`}
-                  >
-                    ${amt}
-                  </button>
-                ))}
-              </div>
+            {/* Quick Amount Buttons */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {[5, 10, 25, 50].map((amt) => (
+                <button
+                  key={amt}
+                  onClick={() => setTopupAmount(amt.toString())}
+                  className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${
+                    topupAmount === amt.toString()
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  ${amt}
+                </button>
+              ))}
+            </div>
 
             {/* Custom Amount Input */}
             <input
@@ -821,26 +924,24 @@ export default function StudentDashboard() {
               min="1"
             />
 
-              <div className="flex gap-3">
-                <button
-                  onClick={handleTopup}
-                  disabled={walletLoading || !topupAmount}
-                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
-                >
-                  {walletLoading
-                    ? "Processing..."
-                    : `Pay $${topupAmount || "0"}`}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowTopupModal(false);
-                    setTopupAmount("");
-                  }}
-                  className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleTopup}
+                disabled={walletLoading || !topupAmount}
+                className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
+              >
+                {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
+              </button>
+              <button
+                onClick={() => {
+                  setShowTopupModal(false);
+                  setTopupAmount("");
+                }}
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
 
             <p className="text-xs text-gray-500 mt-3 text-center">
               Powered by Finternet • Secure Payment
@@ -848,6 +949,62 @@ export default function StudentDashboard() {
           </div>
         </div>
       )}
-    </>
+
+      {/* Notes Modal */}
+      {showNotesModal && selectedNote && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">
+                  Session Notes
+                </h3>
+                <p className="text-sm text-gray-500">
+                  With {selectedNote.teacherId?.name} •{" "}
+                  {new Date(selectedNote.startedAt).toLocaleDateString()}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowNotesModal(false)}
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors cursor-pointer"
+              >
+                <XCircle className="h-6 w-6 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+              <div className="prose prose-purple max-w-none">
+                <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 mb-8">
+                  <h4 className="text-purple-900 font-bold mb-3 flex items-center gap-2">
+                    <FileSearch className="h-5 w-5" />
+                    AI Summary & Key Takeaways
+                  </h4>
+                  <div className="text-purple-800 whitespace-pre-wrap leading-relaxed">
+                    {selectedNote.notes}
+                  </div>
+                </div>
+
+                <h4 className="text-gray-900 font-bold mb-4 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-500" />
+                  Full Transcription
+                </h4>
+                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">
+                  {selectedNote.transcription || "Transcription not available."}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setShowNotesModal(false)}
+                className="px-6 py-2 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-all cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
