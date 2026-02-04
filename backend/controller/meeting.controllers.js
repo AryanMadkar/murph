@@ -166,6 +166,61 @@ const getStudentSessions = async (req, res) => {
   }
 };
 
+const Session = require("../models/session.models");
+
+// Get student's complete session history (for My Sessions page)
+const getStudentSessionHistory = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // 1. Get lifecycle meetings (Pending, Active, Cancelled)
+    const meetings = await Meeting.find({
+      studentId,
+      status: { $ne: "completed" } // Exclude completed from here (we'll look in Sessions)
+    })
+      .populate("teacherId", "email name")
+      .sort({ createdAt: -1 });
+
+    // 2. Get detailed completed sessions
+    const sessions = await Session.find({ studentId })
+      .populate("teacherId", "email name")
+      .sort({ start_time: -1 });
+
+    // 3. Normalize Session data to match UI expectations
+    const formattedSessions = sessions.map(s => ({
+      _id: s._id,
+      meetingId: s.meetingId,
+      teacherId: s.teacherId,
+      status: s.status.toLowerCase(), // "COMPLETED" -> "completed"
+      createdAt: s.createdAt,
+      startedAt: s.start_time,
+      endedAt: s.end_time,
+      durationMinutes: s.duration_minutes || s.calculated_duration,
+      sessionPrice: s.final_cost ? s.final_cost * 100 : 0, // Assume final_cost is in dollars, convert to cents if needed, or check model
+      roomId: s.roomId,
+      isDetailed: true
+    }));
+
+    // 4. Combine: Pending/Active (Meetings) + Completed (Sessions)
+    // If a session exists for a meeting, use the session details
+    const allItems = [...meetings, ...formattedSessions].sort((a, b) =>
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.json({
+      success: true,
+      sessions: allItems,
+      total: allItems.length,
+    });
+  } catch (error) {
+    console.error("Get student session history error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
 // Teacher accepts a meeting request
 const acceptMeeting = async (req, res) => {
   try {
@@ -579,6 +634,7 @@ module.exports = {
   requestMeeting,
   getPendingMeetings,
   getStudentSessions,
+  getStudentSessionHistory,
   acceptMeeting,
   declineMeeting,
   getTeachers,

@@ -2,34 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
-import { Home, Compass, Calendar, Wallet, LogOut, Clock, Video, CheckCircle, Loader2, XCircle } from "lucide-react";
+
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Navigation items for sidebar
-const navItems = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "explore", label: "Explore", icon: Compass },
-  { id: "sessions", label: "My Sessions", icon: Calendar },
-  { id: "wallet", label: "Wallet", icon: Wallet },
-];
 const socket = io(API_URL);
 
 export default function StudentDashboard() {
-  const [teachers, setTeachers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("home");
-  const [chatInput, setChatInput] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const pollingRef = useRef(null);
 
-  // Sessions state
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
+
 
   // Wallet state
   const [walletBalance, setWalletBalance] = useState(0);
@@ -55,24 +41,6 @@ export default function StudentDashboard() {
       }
     } catch (err) {
       console.error("Failed to fetch balance:", err);
-    }
-  };
-
-  // Fetch student sessions
-  const fetchSessions = async (studentId) => {
-    try {
-      setSessionsLoading(true);
-      const res = await axios.get(`${API_URL}/api/meetings/student/${studentId}`, {
-        headers: getAuthHeaders(),
-      });
-      if (res.data.success) {
-        setPendingRequests(res.data.pendingRequests || []);
-        setActiveSessions(res.data.activeSessions || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch sessions:", err);
-    } finally {
-      setSessionsLoading(false);
     }
   };
 
@@ -266,8 +234,7 @@ export default function StudentDashboard() {
     // Fetch wallet balance
     fetchBalance();
 
-    // Fetch student sessions
-    fetchSessions(parsedUser._id);
+
 
     // Check for pending payment (after redirect back)
     verifyPendingPayment();
@@ -275,16 +242,7 @@ export default function StudentDashboard() {
     // Register with socket
     socket.emit("register-user", parsedUser._id);
 
-    axios
-      .get(`${API_URL}/api/meetings/teachers`)
-      .then((res) => {
-        setTeachers(res.data.teachers);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setMessage("Error loading teachers: " + err.message);
-        setLoading(false);
-      });
+
 
     socket.on("meeting-accepted", ({ roomId }) => {
       setMessage("🎉 Meeting accepted! Joining call...");
@@ -314,34 +272,9 @@ export default function StudentDashboard() {
     };
   }, [navigate]);
 
-  const requestMeeting = async (teacherId) => {
-    try {
-      const res = await axios.post(
-        `${API_URL}/api/meetings/request`,
-        { studentId: user._id, teacherId },
-        { headers: getAuthHeaders() },
-      );
 
-      if (res.data.success) {
-        setMessage("✅ Meeting request sent! Waiting for teacher...");
-        fetchBalance();
-        socket.emit("meeting-request", {
-          teacherId,
-          studentEmail: user.email,
-          meetingId: res.data.meeting._id,
-        });
-      }
-    } catch (err) {
-      setMessage("❌ " + (err.response?.data?.message || err.message));
-    }
-  };
 
-  const logout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("pendingPaymentIntent");
-    navigate("/login");
-  };
+
 
   // Simulate payment completion (DEV ONLY)
   const handleSimulateComplete = async () => {
@@ -370,260 +303,112 @@ export default function StudentDashboard() {
   const hasPendingPayment = localStorage.getItem("pendingPaymentIntent");
 
   return (
-    <div className="flex min-h-screen bg-[#F5F5F5] font-['Source_Sans_Pro']">
-      {/* Left Sidebar */}
-      <aside className="w-56 bg-white border-r border-gray-100 flex flex-col fixed h-full">
-        {/* Logo */}
-        <div className="p-6 pb-4">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Murph
-          </h1>
-        </div>
+    <>
+      {/* Greeting */}
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold text-gray-900">
+          <span className="text-purple-600">Hi there,</span>{" "}
+          {user?.name || user?.email?.split("@")[0] || "User"}!
+        </h1>
+        <p className="text-3xl font-bold text-gray-900 mt-1">
+          Ready to start learning?
+        </p>
+      </div>
 
-        {/* Profile Section */}
-        <div className="px-6 py-4 flex flex-col items-center border-b border-gray-100">
-          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-medium mb-2">
-            Profile
+      {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
+
+
+
+      {/* Payment Processing Banner */}
+      {paymentStatus === "processing" && (
+        <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+            <p className="font-medium text-yellow-700">{message}</p>
           </div>
-          <p className="text-sm font-semibold text-gray-900">
-            {user?.name || user?.email?.split("@")[0] || "Username"}
-          </p>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6">
-          <ul className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    if (item.id === "wallet") {
-                      navigate("/wallet");
-                    } else if (item.id === "explore") {
-                      navigate("/explore");
-                    }
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${activeTab === item.id
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                    }`}
-                >
-                  <item.icon className="w-5 h-5" />
-                  {item.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {/* Logout */}
-        <div className="p-4 border-t border-gray-100">
           <button
-            onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all cursor-pointer"
+            onClick={handleSimulateComplete}
+            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
           >
-            <LogOut className="w-5 h-5" />
-            Logout
+            ⚡ Complete Now (Dev)
           </button>
         </div>
-      </aside>
+      )}
 
-      {/* Main Content */}
-      <main className="flex-1 ml-56 p-10">
-        {/* Greeting */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold text-gray-900">
-            <span className="text-purple-600">Hi there,</span>{" "}
-            {user?.name || user?.email?.split("@")[0] || "User"}!
-          </h1>
-          <p className="text-3xl font-bold text-gray-900 mt-1">
-            Ready to start learning?
-          </p>
-        </div>
-
-        {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
-
-        {/* Active Sessions - Join Video Call */}
-        {activeSessions.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-              <Video className="h-5 w-5 text-green-500" />
-              Live Sessions
-            </h2>
-            <div className="grid gap-4">
-              {activeSessions.map((session) => (
-                <div
-                  key={session._id}
-                  className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200 shadow-sm flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-xl">
-                      👨‍🏫
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900">
-                        Session with {session.teacherId?.name || session.teacherId?.email?.split('@')[0]}
-                      </h3>
-                      <p className="text-sm text-gray-500">{session.teacherId?.email}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/video-call/${session.roomId}`)}
-                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors cursor-pointer shadow-lg"
-                  >
-                    <Video className="h-5 w-5" />
-                    Join Call
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Pending Session Requests */}
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-            <Clock className="h-5 w-5 text-orange-500" />
-            Pending Requests
-            {pendingRequests.length > 0 && (
-              <span className="text-sm font-medium text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
-                {pendingRequests.length}
-              </span>
-            )}
-          </h2>
-
-          {sessionsLoading ? (
-            <div className="flex items-center justify-center h-32 bg-white rounded-2xl border border-gray-100">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-              <span className="ml-2 text-gray-400">Loading sessions...</span>
-            </div>
-          ) : pendingRequests.length === 0 ? (
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
-              <CheckCircle className="h-10 w-10 text-gray-200 mx-auto mb-2" />
-              <p className="text-gray-400 font-medium">No pending requests</p>
-              <p className="text-sm text-gray-300">Request a session from the Explore page</p>
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {pendingRequests.map((request) => (
-                <div
-                  key={request._id}
-                  className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-lg">
-                      ⏳
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {request.teacherId?.name || request.teacherId?.email?.split('@')[0]}
-                      </h3>
-                      <p className="text-sm text-gray-400">{request.teacherId?.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
-                      Waiting for teacher...
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Payment Processing Banner */}
-        {paymentStatus === "processing" && (
-          <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
-              <p className="font-medium text-yellow-700">{message}</p>
-            </div>
-            <button
-              onClick={handleSimulateComplete}
-              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
-            >
-              ⚡ Complete Now (Dev)
-            </button>
-          </div>
-        )}
-
-        {/* Success/Error Message */}
-        {message && paymentStatus !== "processing" && (
-          <div className={`p-4 mb-4 rounded-lg ${paymentStatus === "success"
-            ? "bg-green-50 border border-green-200"
+      {/* Success/Error Message */}
+      {message && paymentStatus !== "processing" && (
+        <div className={`p-4 mb-4 rounded-lg ${paymentStatus === "success"
+          ? "bg-green-50 border border-green-200"
+          : paymentStatus === "failed"
+            ? "bg-red-50 border border-red-200"
+            : "bg-blue-50 border border-blue-200"
+          }`}>
+          <p className={`font-medium ${paymentStatus === "success"
+            ? "text-green-700"
             : paymentStatus === "failed"
-              ? "bg-red-50 border border-red-200"
-              : "bg-blue-50 border border-blue-200"
-            }`}>
-            <p className={`font-medium ${paymentStatus === "success"
-              ? "text-green-700"
-              : paymentStatus === "failed"
-                ? "text-red-700"
-                : "text-blue-700"
-              }`}>{message}</p>
-          </div>
-        )}
+              ? "text-red-700"
+              : "text-blue-700"
+            }`}>{message}</p>
+        </div>
+      )}
 
-        {/* Topup Modal */}
-        {showTopupModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
-              <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
+      {/* Topup Modal */}
+      {showTopupModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
+            <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
 
-              {/* Quick Amount Buttons */}
-              <div className="grid grid-cols-4 gap-2 mb-4">
-                {[5, 10, 25, 50].map((amt) => (
-                  <button
-                    key={amt}
-                    onClick={() => setTopupAmount(amt.toString())}
-                    className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                      }`}
-                  >
-                    ${amt}
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom Amount Input */}
-              <input
-                type="number"
-                placeholder="Or enter custom amount"
-                value={topupAmount}
-                onChange={(e) => setTopupAmount(e.target.value)}
-                className="w-full p-3 border border-gray-200 rounded-lg mb-4 text-lg focus:outline-none focus:border-purple-500"
-                min="1"
-              />
-
-              <div className="flex gap-3">
+            {/* Quick Amount Buttons */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {[5, 10, 25, 50].map((amt) => (
                 <button
-                  onClick={handleTopup}
-                  disabled={walletLoading || !topupAmount}
-                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
+                  key={amt}
+                  onClick={() => setTopupAmount(amt.toString())}
+                  className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    }`}
                 >
-                  {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
+                  ${amt}
                 </button>
-                <button
-                  onClick={() => {
-                    setShowTopupModal(false);
-                    setTopupAmount("");
-                  }}
-                  className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-
-              <p className="text-xs text-gray-500 mt-3 text-center">
-                Powered by Finternet • Secure Payment
-              </p>
+              ))}
             </div>
+
+            {/* Custom Amount Input */}
+            <input
+              type="number"
+              placeholder="Or enter custom amount"
+              value={topupAmount}
+              onChange={(e) => setTopupAmount(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-lg mb-4 text-lg focus:outline-none focus:border-purple-500"
+              min="1"
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleTopup}
+                disabled={walletLoading || !topupAmount}
+                className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
+              >
+                {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
+              </button>
+              <button
+                onClick={() => {
+                  setShowTopupModal(false);
+                  setTopupAmount("");
+                }}
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-3 text-center">
+              Powered by Finternet • Secure Payment
+            </p>
           </div>
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+    </>
   );
 }

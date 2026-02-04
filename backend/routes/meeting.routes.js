@@ -4,6 +4,7 @@ const {
   requestMeeting,
   getPendingMeetings,
   getStudentSessions,
+  getStudentSessionHistory,
   acceptMeeting,
   declineMeeting,
   getTeachers,
@@ -17,8 +18,11 @@ router.get("/teachers", getTeachers);
 // Student requests a meeting (⭐ deducts from wallet)
 router.post("/request", requestMeeting);
 
-// Get student's sessions (pending, active, completed)
+// Get student's sessions (pending, active, completed - for dashboard)
 router.get("/student/:studentId", getStudentSessions);
+
+// Get student's complete session history (for My Sessions page)
+router.get("/student/:studentId/history", getStudentSessionHistory);
 
 // Teacher gets pending requests
 router.get("/pending/:teacherId", getPendingMeetings);
