@@ -39,7 +39,7 @@ app.add_middleware(
 # Configuration
 # Options: VGG-Face, Facenet, OpenFace, DeepFace, DeepID, ArcFace, Dlib
 FACE_MODEL = os.getenv("FACE_MODEL", "Facenet")
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "10.0"))
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.9"))
 ENFORCE_DETECTION = os.getenv("ENFORCE_DETECTION", "False").lower() == "true"
 # 'skip' avoids detection logic and uses the whole image - very reliable for webcams
 DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "skip")

@@ -1,5 +1,9 @@
 const Meeting = require("../models/meeting.models");
+const User = require("../models/user.models");
 const { v4: uuidv4 } = require("uuid");
+
+// Session price (can be made dynamic later)
+const SESSION_PRICE = 100; // ₹100 per session
 
 // Student requests a meeting with a teacher
 const requestMeeting = async (req, res) => {
@@ -10,6 +14,22 @@ const requestMeeting = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Student ID and Teacher ID are required",
+      });
+    }
+
+    // Check student's wallet balance
+    const student = await User.findById(studentId);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    if (student.walletBalance < SESSION_PRICE) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient balance. You need ₹${SESSION_PRICE} for a session. Current balance: ₹${student.walletBalance}`,
       });
     }
 
@@ -27,18 +47,25 @@ const requestMeeting = async (req, res) => {
       });
     }
 
+    // Deduct amount from student's wallet (held until session completes)
+    student.walletBalance -= SESSION_PRICE;
+    await student.save();
+
     const newMeeting = new Meeting({
       studentId,
       teacherId,
       status: "pending",
+      amount: SESSION_PRICE,
+      paymentStatus: "held", // Money is held, not transferred yet
     });
 
     await newMeeting.save();
 
     res.status(201).json({
       success: true,
-      message: "Meeting request sent",
+      message: `Meeting request sent. ₹${SESSION_PRICE} deducted from your wallet.`,
       meeting: newMeeting,
+      newBalance: student.walletBalance,
     });
   } catch (error) {
     console.error("Request meeting error:", error);
@@ -113,10 +140,194 @@ const acceptMeeting = async (req, res) => {
   }
 };
 
+// Complete meeting and transfer payment to teacher
+const completeMeeting = async (req, res) => {
+  try {
+    const { meetingId, roomId } = req.body;
+
+    let meeting;
+    if (meetingId) {
+      meeting = await Meeting.findById(meetingId);
+    } else if (roomId) {
+      meeting = await Meeting.findOne({ roomId });
+    }
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found",
+      });
+    }
+
+    if (meeting.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Meeting already completed",
+      });
+    }
+
+    // Transfer held amount to teacher
+    if (meeting.paymentStatus === "held") {
+      const teacher = await User.findById(meeting.teacherId);
+      if (teacher) {
+        teacher.walletBalance = (teacher.walletBalance || 0) + meeting.amount;
+        await teacher.save();
+      }
+
+      meeting.paymentStatus = "transferred";
+      meeting.status = "completed";
+      meeting.completedAt = new Date();
+      await meeting.save();
+
+      res.json({
+        success: true,
+        message: `Session completed. ₹${meeting.amount} transferred to teacher.`,
+        meeting,
+      });
+    } else {
+      // Just mark completed if payment wasn't held (legacy or error)
+      meeting.status = "completed";
+      meeting.completedAt = new Date();
+      await meeting.save();
+
+      res.json({
+        success: true,
+        message: "Session completed.",
+        meeting,
+      });
+    }
+  } catch (error) {
+    console.error("Complete meeting error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+// Cancel meeting and refund student
+const cancelMeeting = async (req, res) => {
+  try {
+    const { meetingId } = req.body;
+
+    const meeting = await Meeting.findById(meetingId);
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found",
+      });
+    }
+
+    if (meeting.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot cancel completed meeting",
+      });
+    }
+
+    // Refund student if payment was held
+    if (meeting.paymentStatus === "held") {
+      const student = await User.findById(meeting.studentId);
+      if (student) {
+        student.walletBalance += meeting.amount;
+        await student.save();
+      }
+
+      meeting.paymentStatus = "refunded";
+      meeting.status = "cancelled";
+      await meeting.save();
+
+      res.json({
+        success: true,
+        message: `Meeting cancelled. ₹${meeting.amount} refunded to your wallet.`,
+        meeting,
+      });
+    } else {
+      meeting.status = "cancelled";
+      await meeting.save();
+
+      res.json({
+        success: true,
+        message: "Meeting cancelled",
+        meeting,
+      });
+    }
+  } catch (error) {
+    console.error("Cancel meeting error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+// Get user's wallet balance
+const getWalletBalance = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      balance: user.walletBalance || 0,
+    });
+  } catch (error) {
+    console.error("Get wallet balance error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+// Add money to wallet (for testing/admin)
+const addMoney = async (req, res) => {
+  try {
+    const { userId, amount } = req.body;
+
+    if (!userId || !amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid user ID and positive amount required",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.walletBalance = (user.walletBalance || 0) + amount;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `₹${amount} added to wallet`,
+      newBalance: user.walletBalance,
+    });
+  } catch (error) {
+    console.error("Add money error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
 // Get all teachers
 const getTeachers = async (req, res) => {
   try {
-    const User = require("../models/user.models");
     const teachers = await User.find({ role: "teacher" }, "email _id");
 
     res.json({
@@ -135,5 +346,9 @@ module.exports = {
   requestMeeting,
   getPendingMeetings,
   acceptMeeting,
+  completeMeeting,
+  cancelMeeting,
+  getWalletBalance,
+  addMoney,
   getTeachers,
 };

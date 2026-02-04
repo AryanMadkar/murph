@@ -2,24 +2,21 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    role: {
-      type: String,
-      enum: ["teacher", "student"],
+    email: { type: String, unique: true, required: true },
+    role: { type: String, enum: ["teacher", "student"], required: true },
+
+    // Store multiple embeddings for accuracy
+    embeddings: {
+      type: [[Number]],
       required: true,
     },
-    embedding: {
-      type: [Number],
-      required: true,
+
+    walletBalance: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true },
 );
 
-const User = mongoose.model("User", userSchema);
-
-module.exports = User;
+module.exports = mongoose.model("User", userSchema);

@@ -14,11 +14,24 @@ const meetingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "accepted", "rejected"],
+      enum: ["pending", "accepted", "rejected", "completed", "cancelled"],
       default: "pending",
     },
     roomId: {
       type: String,
+      default: null,
+    },
+    amount: {
+      type: Number,
+      default: 100, // Default session price
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["held", "transferred", "refunded"],
+      default: "held",
+    },
+    completedAt: {
+      type: Date,
       default: null,
     },
   },
