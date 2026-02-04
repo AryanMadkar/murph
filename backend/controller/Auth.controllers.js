@@ -34,7 +34,7 @@ const register = async (req, res) => {
       password: hashedPassword,
     });
 
-    const token = signToken(newUser._id);
+    const token = generateToken(newUser._id);
 
     res.status(201).json({
       status: "success",

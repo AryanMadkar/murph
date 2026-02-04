@@ -58,7 +58,8 @@ const walletTransactionSchema = new mongoose.Schema(
         "WITHDRAWAL",      // Withdraw to bank
         "PLATFORM_FEE",    // Murph platform fee
         "ADJUSTMENT",      // Manual adjustment
-        "ESCROW_LOCK",     // Lock for escrow payment
+        "ESCROW_LOCK",     // Lock funds in escrow
+        "ESCROW_RELEASE",  // Release escrow to teacher
       ],
       required: true,
     },
