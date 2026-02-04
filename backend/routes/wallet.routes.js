@@ -1,46 +1,41 @@
 const express = require("express");
 const router = express.Router();
+const authMiddleware = require("../middleware/auth.middleware");
 const {
   getBalance,
   createTopupIntent,
+  createEscrowPayment,
+  directWalletCredit,
+  debitWallet,
   verifyTopup,
   getPaymentStatus,
   getTransactions,
   webhookHandler,
+  createWithdrawal,
+  checkFinternetStatus
 } = require("../controller/wallet.controllers");
 
-// Auth middleware
-const authMiddleware = require("../middleware/auth.middleware");
+// ⭐ Public - Check API status
+router.get("/finternet-status", checkFinternetStatus);
 
-/**
- * Wallet Routes — Finternet Integration
- * 
- * Flow:
- * 1. Student clicks "Add $10"
- * 2. Frontend calls POST /api/wallet/create-topup
- * 3. Backend creates Finternet Payment Intent, returns intentId + paymentUrl
- * 4. Frontend redirects to paymentUrl or opens modal
- * 5. Student completes payment
- * 6. Frontend polls GET /api/wallet/payment-status/:intentId OR calls POST /api/wallet/verify-topup
- * 7. Backend verifies status & credits wallet
- */
-
-// Get wallet balance
+// ⭐ Protected routes - Balance & History
 router.get("/balance", authMiddleware, getBalance);
-
-// ⭐ STEP 3 - Create payment intent for top-up
-router.post("/create-topup", authMiddleware, createTopupIntent);
-
-// ⭐ STEP 4 - Verify payment and credit wallet
-router.post("/verify-topup", authMiddleware, verifyTopup);
-
-// Poll payment status
-router.get("/payment-status/:intentId", authMiddleware, getPaymentStatus);
-
-// Get transaction history
 router.get("/transactions", authMiddleware, getTransactions);
 
-// Finternet webhook (no auth - verified by signature)
+// ⭐ Finternet Payment Intents
+router.post("/create-topup", authMiddleware, createTopupIntent);        // CONSENTED_PULL - Wallet topup
+router.post("/create-escrow", authMiddleware, createEscrowPayment);     // DELIVERY_VS_PAYMENT - Session escrow
+router.post("/verify-topup", authMiddleware, verifyTopup);              // Verify payment status
+router.get("/payment-status/:intentId", authMiddleware, getPaymentStatus);
+
+// ⭐ Direct Wallet Operations (Internal)
+router.post("/direct-credit", authMiddleware, directWalletCredit);      // Credit wallet (refunds/adjustments)
+router.post("/debit", authMiddleware, debitWallet);                     // Debit wallet (session payments)
+
+// ⭐ Teacher Withdrawal
+router.post("/withdraw", authMiddleware, createWithdrawal);
+
+// ⭐ Webhook (No auth - Finternet calls this)
 router.post("/webhook", webhookHandler);
 
 module.exports = router;

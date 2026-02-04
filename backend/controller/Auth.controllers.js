@@ -38,13 +38,11 @@ const register = async (req, res) => {
     if (!aiRes.data.success)
       return res.status(400).json({ message: "Face not detected" });
 
-    const user = await User.create({
+    const newUser = await User.create({
       email,
       role,
-      embeddings: [aiRes.data.embedding],
+      embedding: aiRes.data.embedding,
     });
-
-    await newUser.save();
 
     // ✅ Generate JWT token on registration
     const token = generateToken(newUser._id);
@@ -57,10 +55,11 @@ const register = async (req, res) => {
         email: newUser.email,
         role: newUser.role,
         id: newUser._id,
-        walletBalance: newUser.walletBalance / 100,
+        walletBalance: (newUser.walletBalance || 0) / 100,
       },
     });
   } catch (err) {
+    console.error("Register error:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -83,13 +82,10 @@ const login = async (req, res) => {
 
     // 2. Encode the uploaded face
     console.log("Encoding face for login...");
-    let encodeRes;
-    try {
-      encodeRes = await axios.post(`${AI_SERVICE_URL}/encode`, formData, {
-        headers: formData.getHeaders(),
-        timeout: 10000,
-      },
-    );
+    const encodeResponse = await axios.post(`${AI_SERVICE_URL}/encode`, formData, {
+      headers: formData.getHeaders(),
+      timeout: 10000,
+    });
 
     if (!encodeResponse.data.success) {
       return res.status(400).json({
@@ -98,7 +94,7 @@ const login = async (req, res) => {
       });
     }
 
-    // Match faces using Python AI service
+    // 3. Match faces using Python AI service
     const matchPayload = {
       new_embedding: encodeResponse.data.embedding,
       stored_embeddings: [user.embedding],
@@ -124,12 +120,10 @@ const login = async (req, res) => {
         distance: matchResponse.data.distance,
         token,
         user: {
-          // Sending user object for frontend consistency
           id: user._id,
           email: user.email,
           role: user.role,
-          id: user._id,
-          walletBalance: user.walletBalance / 100,
+          walletBalance: (user.walletBalance || 0) / 100,
         },
       });
     } else {
@@ -137,7 +131,7 @@ const login = async (req, res) => {
       res.status(401).json({ message: "Face verification failed" });
     }
   } catch (err) {
-    console.error("Login error (General):", err);
+    console.error("Login error:", err);
     res.status(500).json({ error: err.message });
   }
 };

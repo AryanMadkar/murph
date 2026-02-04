@@ -58,6 +58,7 @@ const walletTransactionSchema = new mongoose.Schema(
         "WITHDRAWAL",      // Withdraw to bank
         "PLATFORM_FEE",    // Murph platform fee
         "ADJUSTMENT",      // Manual adjustment
+        "ESCROW_LOCK",     // Lock for escrow payment
       ],
       required: true,
     },
@@ -82,6 +83,31 @@ const walletTransactionSchema = new mongoose.Schema(
     // External reference (Finternet transaction ID, etc.)
     externalRef: {
       type: String,
+      default: null,
+    },
+    
+    // ⭐ CRITICAL: Processed flag to prevent double-crediting
+    processed: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    
+    // When the transaction was processed
+    processedAt: {
+      type: Date,
+      default: null,
+    },
+    
+    // Failure reason if failed
+    failureReason: {
+      type: String,
+      default: null,
+    },
+    
+    // Webhook data for audit
+    webhookData: {
+      type: mongoose.Schema.Types.Mixed,
       default: null,
     },
     
