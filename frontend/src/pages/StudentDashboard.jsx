@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
 
-const API_URL = "https://hobby-affiliated-adds-theology.trycloudflare.com";
+const API_URL = import.meta.env.VITE_API_URL;
 const socket = io(API_URL);
 
 export default function StudentDashboard() {
