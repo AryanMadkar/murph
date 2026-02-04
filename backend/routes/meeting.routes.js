@@ -8,7 +8,6 @@ const {
   startMeeting,
   completeMeeting,
   declineMeeting,
-  completeMeeting,
   cancelMeeting,
   getTeachers,
   getWalletBalance,
@@ -41,7 +40,7 @@ router.post("/complete", completeMeeting);
 router.post("/decline/:meetingId", declineMeeting);
 
 // Complete a meeting (⭐ releases escrow to teacher)
-router.post("/complete", completeMeeting);
+// router.post("/complete", completeMeeting);
 
 // Cancel a meeting (⭐ refunds student from escrow)
 router.post("/cancel", cancelMeeting);
