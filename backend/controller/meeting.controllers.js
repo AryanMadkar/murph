@@ -417,7 +417,9 @@ const completeMeeting = async (req, res) => {
           timestamp: new Date(),
         });
 
-        console.log(`✅ Teacher ${teacher.email} received $${(meeting.teacherEarning / 100).toFixed(2)} for session`);
+        console.log(
+          `✅ Teacher ${teacher.email} received $${(meeting.teacherEarning / 100).toFixed(2)} for session`,
+        );
 
         // Generate detailed bill
         bill = {
@@ -739,8 +741,11 @@ const testCompleteTeacherSession = async (req, res) => {
     const meeting = await Meeting.findOne({
       teacherId,
       status: "accepted",
-      paymentStatus: "escrow"
-    }).populate('studentId', 'name email').populate('teacherId', 'name email').sort({ createdAt: -1 });
+      paymentStatus: "escrow",
+    })
+      .populate("studentId", "name email")
+      .populate("teacherId", "name email")
+      .sort({ createdAt: -1 });
 
     if (!meeting) {
       return res.status(404).json({
@@ -749,21 +754,30 @@ const testCompleteTeacherSession = async (req, res) => {
       });
     }
 
-    console.log(`🧪 TEST: Completing session ${meeting._id} for teacher ${meeting.teacherId.email}`);
+    console.log(
+      `🧪 TEST: Completing session ${meeting._id} for teacher ${meeting.teacherId.email}`,
+    );
 
     // ⭐ ESCROW RELEASE: Transfer funds to teacher
     let bill = null;
     if (meeting.paymentStatus === "escrow") {
-      const teacher = await User.findById(meeting.teacherId._id || meeting.teacherId);
-      
+      const teacher = await User.findById(
+        meeting.teacherId._id || meeting.teacherId,
+      );
+
       if (teacher) {
-        console.log(`💰 Teacher balance before: $${(teacher.walletBalance / 100).toFixed(2)}`);
-        
+        console.log(
+          `💰 Teacher balance before: $${(teacher.walletBalance / 100).toFixed(2)}`,
+        );
+
         // Credit teacher's wallet (minus platform fee)
-        teacher.walletBalance = (teacher.walletBalance || 0) + meeting.teacherEarning;
+        teacher.walletBalance =
+          (teacher.walletBalance || 0) + meeting.teacherEarning;
         await teacher.save();
 
-        console.log(`💰 Teacher balance after: $${(teacher.walletBalance / 100).toFixed(2)}`);
+        console.log(
+          `💰 Teacher balance after: $${(teacher.walletBalance / 100).toFixed(2)}`,
+        );
 
         // Record teacher earning transaction
         await WalletTransaction.create({
@@ -781,7 +795,7 @@ const testCompleteTeacherSession = async (req, res) => {
         await WalletTransaction.create({
           userId: teacher._id,
           amount: meeting.platformFee,
-          type: "DEBIT", 
+          type: "DEBIT",
           status: "SUCCESS",
           category: "PLATFORM_FEE",
           description: `Platform fee (10%) for session #${meeting._id}`,
@@ -800,7 +814,9 @@ const testCompleteTeacherSession = async (req, res) => {
           timestamp: new Date(),
         });
 
-        console.log(`✅ Teacher ${teacher.email} received $${(meeting.teacherEarning / 100).toFixed(2)} for session`);
+        console.log(
+          `✅ Teacher ${teacher.email} received $${(meeting.teacherEarning / 100).toFixed(2)} for session`,
+        );
       }
     }
 
@@ -815,7 +831,6 @@ const testCompleteTeacherSession = async (req, res) => {
       teacherEarning: meeting.teacherEarning / 100,
       teacherNewBalance: (teacher?.walletBalance || 0) / 100,
     });
-
   } catch (error) {
     console.error("Test complete meeting error:", error);
     res.status(500).json({
@@ -835,8 +850,8 @@ module.exports = {
   completeMeeting,
   cancelMeeting,
   declineMeeting,
-  completeMeeting,
-  cancelMeeting,
   getTeachers,
+  getWalletBalance,
+  addMoney,
   testCompleteTeacherSession,
 };
