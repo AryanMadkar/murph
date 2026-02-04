@@ -57,8 +57,9 @@ export default function Register() {
         const response = await axios.post(`${API_URL}/register`, formData);
         if (response.data.success) {
           setMessage("✅ Registration successful! Redirecting...");
-          // Store user info in localStorage
+          // ✅ Store both user and JWT token
           localStorage.setItem("user", JSON.stringify(response.data.user));
+          localStorage.setItem("token", response.data.token);
           setTimeout(() => {
             navigate(role === "teacher" ? "/teacher" : "/student");
           }, 1500);

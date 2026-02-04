@@ -1,8 +1,19 @@
 const User = require("../models/user.models");
 const axios = require("axios");
 const FormData = require("form-data");
+const jwt = require("jsonwebtoken");
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL;
+const JWT_SECRET = process.env.JWT_SECRET || "murph_secret_key_change_in_production";
+
+// Generate JWT token
+const generateToken = (userId) => {
+  return jwt.sign(
+    { id: userId },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+};
 
 const register = async (req, res) => {
   try {
@@ -75,13 +86,18 @@ const register = async (req, res) => {
 
     await newUser.save();
 
+    // ✅ Generate JWT token on registration
+    const token = generateToken(newUser._id);
+
     res.status(201).json({
       success: true,
       message: "User registered successfully",
+      token,
       user: {
         email: newUser.email,
         role: newUser.role,
         id: newUser._id,
+        walletBalance: newUser.walletBalance / 100,
       },
     });
   } catch (error) {
@@ -159,15 +175,20 @@ const login = async (req, res) => {
     );
 
     if (matchResponse.data.match) {
+      // ✅ Generate JWT token on successful login
+      const token = generateToken(user._id);
+
       res.json({
         success: true,
         message: "✅ Login successful",
         match: true,
         distance: matchResponse.data.distance,
+        token,
         user: {
           email: user.email,
           role: user.role,
           id: user._id,
+          walletBalance: user.walletBalance / 100,
         },
       });
     } else {

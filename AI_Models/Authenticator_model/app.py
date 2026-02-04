@@ -37,12 +37,25 @@ app.add_middleware(
 )
 
 # Configuration
-# Options: VGG-Face, Facenet, OpenFace, DeepFace, DeepID, ArcFace, Dlib
-FACE_MODEL = os.getenv("FACE_MODEL", "Facenet")
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "10.0"))
-ENFORCE_DETECTION = os.getenv("ENFORCE_DETECTION", "False").lower() == "true"
-# 'skip' avoids detection logic and uses the whole image - very reliable for webcams
-DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "skip")
+# Options: VGG-Face, Facenet, Facenet512, OpenFace, DeepFace, DeepID, ArcFace, Dlib, SFace
+# ArcFace and Facenet512 are most accurate for authentication
+FACE_MODEL = os.getenv("FACE_MODEL", "ArcFace")
+
+# Threshold depends on model:
+# - Facenet: ~10.0 (Euclidean), ~0.40 (Cosine)
+# - ArcFace: ~0.68 (Cosine), ~1.13 (Euclidean)
+# - Facenet512: ~0.30 (Cosine)
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.68"))
+
+# MUST enforce detection for accurate face embeddings
+ENFORCE_DETECTION = os.getenv("ENFORCE_DETECTION", "True").lower() == "true"
+
+# Use 'retinaface' for best accuracy, 'opencv' for speed, 'mtcnn' for balance
+# Options: opencv, ssd, dlib, mtcnn, retinaface, mediapipe, yolov8, yunet, fastmtcnn
+DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "retinaface")
+
+# Distance metric: cosine is more robust than euclidean for face matching
+DISTANCE_METRIC = os.getenv("DISTANCE_METRIC", "cosine")
 
 
 # Pydantic models
@@ -136,7 +149,10 @@ async def health_check():
     return {
         "status": "healthy",
         "model": FACE_MODEL,
-        "threshold": MATCH_THRESHOLD
+        "threshold": MATCH_THRESHOLD,
+        "detector": DETECTOR_BACKEND,
+        "distance_metric": DISTANCE_METRIC,
+        "enforce_detection": ENFORCE_DETECTION
     }
 
 
@@ -242,8 +258,21 @@ async def match_faces(data: MatchRequest):
         for idx, stored_emb in enumerate(data.stored_embeddings):
             stored_array = np.array(stored_emb)
 
-            # Calculate Euclidean distance
-            distance = np.linalg.norm(new_embedding - stored_array)
+            # Calculate distance based on metric
+            if DISTANCE_METRIC == "cosine":
+                # Cosine similarity: 1 - (a·b)/(||a||*||b||)
+                # Lower is better (0 = identical, 2 = opposite)
+                dot_product = np.dot(new_embedding, stored_array)
+                norm_new = np.linalg.norm(new_embedding)
+                norm_stored = np.linalg.norm(stored_array)
+                if norm_new > 0 and norm_stored > 0:
+                    cosine_similarity = dot_product / (norm_new * norm_stored)
+                    distance = 1 - cosine_similarity
+                else:
+                    distance = 2.0  # Max distance if normalization fails
+            else:
+                # Euclidean distance
+                distance = np.linalg.norm(new_embedding - stored_array)
 
             logger.debug(f"Distance to embedding {idx}: {distance}")
 
