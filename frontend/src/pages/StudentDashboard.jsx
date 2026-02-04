@@ -445,7 +445,7 @@ export default function StudentDashboard() {
       {/* Active Sessions - Join Video Call */}
       {activeSessions.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+          {/* <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
             <Video className="h-5 w-5 text-green-500" />
             Live Sessions
           </h2>
@@ -481,7 +481,7 @@ export default function StudentDashboard() {
                 </button>
               </div>
             ))}
-          </div>
+          </div> */}
         </div>
       )}
       {/* Content Recommendations Section */}
