@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
+import { Search, Loader2, User, Video, LogOut } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const socket = io(API_URL);
@@ -135,7 +136,6 @@ export default function StudentDashboard() {
     // Register with socket
     socket.emit("register-user", parsedUser.id);
 
-    // Fetch teachers
     axios
       .get(`${API_URL}/api/meetings/teachers`)
       .then((res) => {
@@ -155,7 +155,7 @@ export default function StudentDashboard() {
     return () => {
       socket.off("meeting-accepted");
     };
-  }, [navigate, searchParams]);
+  }, [navigate]);
 
   const requestMeeting = async (teacherId) => {
     try {

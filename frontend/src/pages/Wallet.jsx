@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { ArrowLeft, Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Loader2, History } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -77,8 +78,8 @@ export default function Wallet() {
         key: res.data.keyId,
         amount: res.data.amount,
         currency: res.data.currency,
-        name: "Student Wallet",
-        description: "Add dummy money",
+        name: "Murph Wallet",
+        description: "Add funds to wallet",
         order_id: res.data.orderId,
         handler: async function (response) {
           try {
@@ -96,6 +97,7 @@ export default function Wallet() {
               setMessage("✅ Added successfully!");
               setAmount("");
               fetchWalletData(user.id);
+              setTimeout(() => setMessage(""), 3000);
             }
           } catch (err) {
             setMessage("❌ Verification failed");
@@ -104,7 +106,7 @@ export default function Wallet() {
           }
         },
         prefill: { email: user.email },
-        theme: { color: "#2563eb" },
+        theme: { color: "#000000" },
       };
 
       const razorpay = new window.Razorpay(options);
@@ -121,80 +123,102 @@ export default function Wallet() {
   };
 
   return (
-    <div className="p-8 font-sans min-h-screen bg-gray-50 flex flex-col items-center">
-      <div className="w-full max-w-2xl bg-white p-8 rounded-xl shadow-lg">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">My Wallet</h1>
+    <div className="min-h-screen bg-[#FAFAFA] font-['Source_Sans_Pro'] pt-28 pb-12 px-10">
+      <div className="max-w-2xl mx-auto">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
           <button
             onClick={handleBack}
-            className="text-blue-500 hover:underline"
+            className="flex items-center gap-2 text-gray-500 hover:text-black transition-colors"
           >
-            ← Back to Dashboard
+            <ArrowLeft className="h-5 w-5" />
+            <span>Back to Dashboard</span>
           </button>
         </div>
 
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-8 rounded-xl mb-8 shadow-md text-center">
-          <p className="text-lg opacity-90">Current Balance</p>
-          <h2 className="text-5xl font-bold mt-2">₹ {balance}</h2>
-        </div>
+        {/* Main Card */}
+        <div className="bg-white rounded-3xl shadow-xl shadow-gray-100 overflow-hidden border border-gray-100">
 
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-3">
-            Add Funds (Dummy Money)
-          </h3>
-          <div className="flex gap-3">
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Amount (₹)"
-              className="flex-1 p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleAddMoney}
-              disabled={loading}
-              className="px-6 py-3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition"
-            >
-              {loading ? "Processing..." : "+ Add Money"}
-            </button>
-          </div>
-          {message && (
-            <p className="mt-3 font-semibold text-center">{message}</p>
-          )}
-        </div>
+          {/* Balance Section */}
+          <div className="bg-black text-white p-10 flex flex-col items-center justify-center text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-10 opacity-10 transform translate-x-10 -translate-y-10">
+              <WalletIcon className="h-48 w-48" />
+            </div>
 
-        <div>
-          <h3 className="text-xl font-bold mb-4 text-gray-700">
-            Transaction History
-          </h3>
-          <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-            {transactions.length === 0 ? (
-              <p className="text-gray-400 text-center">No transactions yet</p>
-            ) : (
-              transactions.map((tx) => (
-                <div
-                  key={tx._id}
-                  className="flex justify-between p-3 bg-gray-50 border rounded-lg"
-                >
-                  <div>
-                    <p className="font-bold text-gray-700">{tx.type}</p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(tx.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className={`font-bold ${tx.type === "CREDIT" ? "text-green-600" : "text-red-600"}`}
-                    >
-                      {tx.type === "CREDIT" ? "+" : "-"} ₹{tx.amount}
-                    </p>
-                    <span className="text-xs bg-gray-200 px-2 py-1 rounded text-gray-600">
-                      {tx.status}
-                    </span>
-                  </div>
-                </div>
-              ))
+            <p className="text-gray-400 font-medium uppercase tracking-wider text-sm mb-2">Total Balance</p>
+            <h1 className="text-6xl font-bold tracking-tight mb-8">
+              ₹{balance.toLocaleString('en-IN')}
+            </h1>
+
+            <div className="w-full max-w-sm flex gap-3 relative z-10">
+              <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-xl p-1 flex items-center border border-white/10">
+                <span className="pl-4 text-gray-400 text-lg">₹</span>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Amount"
+                  className="bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 w-full font-medium"
+                />
+              </div>
+              <button
+                onClick={handleAddMoney}
+                disabled={loading}
+                className="bg-white text-black px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                Add Funds
+              </button>
+            </div>
+
+            {message && (
+              <p className={`mt-4 text-sm font-medium ${message.includes("❌") ? "text-red-400" : "text-green-400"}`}>
+                {message}
+              </p>
             )}
+          </div>
+
+          {/* Transactions */}
+          <div className="p-8">
+            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <History className="h-5 w-5 text-gray-400" />
+              Transaction History
+            </h3>
+
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              {transactions.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                  <p>No transactions yet</p>
+                </div>
+              ) : (
+                transactions.map((tx) => (
+                  <div key={tx._id} className="group flex justify-between items-center p-4 hover:bg-gray-50 rounded-2xl transition-all border border-transparent hover:border-gray-100">
+                    <div className="flex items-center gap-4">
+                      <div className={`h-12 w-12 rounded-full flex items-center justify-center ${tx.type === 'CREDIT' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        {tx.type === 'CREDIT' ? <ArrowDownLeft className="h-6 w-6" /> : <ArrowUpRight className="h-6 w-6" />}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 capitalize">
+                          {tx.type === "CREDIT" ? "Funds Added" : "Meeting Payment"}
+                        </p>
+                        <p className="text-xs text-gray-500 font-medium">
+                          {new Date(tx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-bold text-lg ${tx.type === 'CREDIT' ? 'text-green-600' : 'text-gray-900'}`}>
+                        {tx.type === 'CREDIT' ? '+' : '-'}₹{tx.amount}
+                      </p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tx.status === 'SUCCESS' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {tx.status}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

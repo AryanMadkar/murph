@@ -183,10 +183,44 @@ const completeMeeting = async (req, res) => {
     meeting.completedAt = new Date();
     await meeting.save();
 
+    // Find the associated attention session to return its ID
+    const AttentionSession = require("../models/Attentionsession.models");
+    const {
+      calculateMetrics,
+      calculateTeacherEffectiveness,
+    } = require("./Attention.controllers");
+    const attentionSession = await AttentionSession.findOne({
+      roomId,
+      status: "active",
+    });
+
+    let attentionSessionId = null;
+    if (attentionSession) {
+      attentionSession.sessionEndTime = new Date();
+      attentionSession.sessionDuration = Math.floor(
+        (attentionSession.sessionEndTime - attentionSession.sessionStartTime) /
+          1000,
+      );
+
+      // Populate metrics using the shared calculator
+      const metrics = calculateMetrics(attentionSession.attentionScores);
+      attentionSession.metrics = metrics;
+      attentionSession.teacherEffectiveness =
+        calculateTeacherEffectiveness(metrics);
+      attentionSession.status = "completed";
+
+      await attentionSession.save();
+      attentionSessionId = attentionSession._id;
+      console.log(
+        `Attention session ${attentionSessionId} finalized with metrics.`,
+      );
+    }
+
     res.json({
       success: true,
       message: "Session completed.",
       meeting,
+      attentionSessionId, // Return this for teacher redirection
     });
   } catch (error) {
     console.error("Complete meeting error:", error);
