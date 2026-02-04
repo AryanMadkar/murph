@@ -67,6 +67,13 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Incorrect email or password" });
     }
 
+    // Check if user has a password set (legacy users might not have one)
+    if (!user.password) {
+      return res.status(401).json({
+        message: "This account was created before password authentication. Please register again or contact support."
+      });
+    }
+
     // Check password
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
