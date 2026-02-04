@@ -22,7 +22,6 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-
 const socket = io(API_URL);
 
 export default function StudentDashboard() {
@@ -42,14 +41,6 @@ export default function StudentDashboard() {
   const [searchParams] = useSearchParams();
   const pollingRef = useRef(null);
 
-  // State variables
-  const [loading, setLoading] = useState(false);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]);
-
-
-
   // Wallet state
   const [walletBalance, setWalletBalance] = useState(0);
   const [topupAmount, setTopupAmount] = useState("");
@@ -67,12 +58,6 @@ export default function StudentDashboard() {
   const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
     return { Authorization: `Bearer ${token}` };
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
   };
 
   // Fetch wallet balance
@@ -469,9 +454,7 @@ export default function StudentDashboard() {
         </p>
       </div>
 
-        {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
-
-
+      {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
 
       {/* Active Sessions - Join Video Call */}
       {activeSessions.length > 0 && (
@@ -615,9 +598,7 @@ export default function StudentDashboard() {
                     {item.type}
                   </span>
                 </div>
-                <h3 className="font-bold text-gray-900 mb-1">
-                  {item.title}
-                </h3>
+                <h3 className="font-bold text-gray-900 mb-1">{item.title}</h3>
                 <p className="text-xs text-gray-500 line-clamp-2 mb-4 flex-grow">
                   {item.description}
                 </p>
@@ -637,7 +618,7 @@ export default function StudentDashboard() {
                     } catch (err) {
                       setMessage(
                         "❌ Failed to access: " +
-                        (err.response?.data?.message || err.message),
+                          (err.response?.data?.message || err.message),
                       );
                     }
                   }}
@@ -651,39 +632,41 @@ export default function StudentDashboard() {
         )}
       </div>
 
-        {/* Payment Processing Banner */}
-        {paymentStatus === "processing" && (
-          <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
-              <p className="font-medium text-yellow-700">{message}</p>
-            </div>
-            <button
-              onClick={handleSimulateComplete}
-              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
-            >
-              ⚡ Complete Now (Dev)
-            </button>
+      {/* Payment Processing Banner */}
+      {paymentStatus === "processing" && (
+        <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+            <p className="font-medium text-yellow-700">{message}</p>
           </div>
-        )}
+          <button
+            onClick={handleSimulateComplete}
+            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
+          >
+            ⚡ Complete Now (Dev)
+          </button>
+        </div>
+      )}
 
       {/* Success/Error Message */}
       {message && paymentStatus !== "processing" && (
         <div
-          className={`p-4 mb-4 rounded-lg ${paymentStatus === "success"
-            ? "bg-green-50 border border-green-200"
-            : paymentStatus === "failed"
-              ? "bg-red-50 border border-red-200"
-              : "bg-blue-50 border border-blue-200"
-            }`}
+          className={`p-4 mb-4 rounded-lg ${
+            paymentStatus === "success"
+              ? "bg-green-50 border border-green-200"
+              : paymentStatus === "failed"
+                ? "bg-red-50 border border-red-200"
+                : "bg-blue-50 border border-blue-200"
+          }`}
         >
           <p
-            className={`font-medium ${paymentStatus === "success"
-              ? "text-green-700"
-              : paymentStatus === "failed"
-                ? "text-red-700"
-                : "text-blue-700"
-              }`}
+            className={`font-medium ${
+              paymentStatus === "success"
+                ? "text-green-700"
+                : paymentStatus === "failed"
+                  ? "text-red-700"
+                  : "text-blue-700"
+            }`}
           >
             {message}
           </p>
@@ -702,10 +685,11 @@ export default function StudentDashboard() {
                 <button
                   key={amt}
                   onClick={() => setTopupAmount(amt.toString())}
-                  className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    }`}
+                  className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${
+                    topupAmount === amt.toString()
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  }`}
                 >
                   ${amt}
                 </button>
@@ -728,9 +712,7 @@ export default function StudentDashboard() {
                 disabled={walletLoading || !topupAmount}
                 className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
               >
-                {walletLoading
-                  ? "Processing..."
-                  : `Pay $${topupAmount || "0"}`}
+                {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
               </button>
               <button
                 onClick={() => {
