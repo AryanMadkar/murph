@@ -10,6 +10,12 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState("student");
+  const [age, setAge] = useState("");
+  const [bio, setBio] = useState("");
+  const [interests, setInterests] = useState("");
+  const [specialization, setSpecialization] = useState("");
+  const [category, setCategory] = useState("");
+  const [hourlyRate, setHourlyRate] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
@@ -23,7 +29,9 @@ export default function Register() {
         const user = JSON.parse(userData);
         if (user) {
           navigate(
-            user.role === "teacher" ? "/teacher-dashboard" : "/student-dashboard",
+            user.role === "teacher"
+              ? "/teacher-dashboard"
+              : "/student-dashboard",
           );
         }
       } catch (e) {
@@ -54,6 +62,12 @@ export default function Register() {
         email,
         password,
         role,
+        age: parseInt(age),
+        bio,
+        interests,
+        specialization,
+        category,
+        hourlyRate: parseInt(hourlyRate * 100), // Convert to paise
       });
 
       if (response.data.status === "success" || response.data.token) {
@@ -104,106 +118,217 @@ export default function Register() {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-2xl">
         <div className="bg-white py-8 px-4 shadow-xl shadow-gray-100 sm:rounded-2xl sm:px-10 border border-gray-100">
           <div className="space-y-6">
-            {/* Role Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                I am a...
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRole("student")}
-                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${role === "student"
-                      ? "bg-gray-900 text-white shadow-md"
-                      : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-                    }`}
-                >
-                  Student
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("teacher")}
-                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${role === "teacher"
-                      ? "bg-gray-900 text-white shadow-md"
-                      : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-                    }`}
-                >
-                  Teacher
-                </button>
-              </div>
-            </div>
-
-            {/* Name Input */}
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Full Name
-              </label>
-              <div className="mt-1">
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2.5 placeholder-gray-400 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500 sm:text-sm"
-                  placeholder="John Doe"
-                />
-              </div>
-            </div>
-
-            {/* Email Input */}
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Email address
-              </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2.5 placeholder-gray-400 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500 sm:text-sm"
-                  placeholder="you@example.com"
-                />
-              </div>
-            </div>
-
-            {/* Password Input */}
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Password
-              </label>
-              <div className="mt-1 relative">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2.5 placeholder-gray-400 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500 sm:text-sm"
-                  placeholder="••••••••"
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" aria-hidden="true" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Basic Info */}
+              <div className="space-y-4">
+                {/* Role Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    I am a...
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setRole("student")}
+                      className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                        role === "student"
+                          ? "bg-gray-900 text-white shadow-md"
+                          : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      Student
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole("teacher")}
+                      className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                        role === "teacher"
+                          ? "bg-gray-900 text-white shadow-md"
+                          : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      Teacher
+                    </button>
+                  </div>
                 </div>
+
+                {/* Name Input */}
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Full Name
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                {/* Email Input */}
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                    placeholder="you@example.com"
+                  />
+                </div>
+
+                {/* Password Input */}
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Password
+                  </label>
+                  <div className="mt-1 relative">
+                    <input
+                      id="password"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                      placeholder="••••••••"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Profile Detailing */}
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="age"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Age
+                  </label>
+                  <input
+                    id="age"
+                    type="number"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                    placeholder="20"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="bio"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Bio / About Me
+                  </label>
+                  <textarea
+                    id="bio"
+                    rows={3}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                    placeholder="Tell us about yourself..."
+                  />
+                </div>
+
+                {role === "student" ? (
+                  <div>
+                    <label
+                      htmlFor="interests"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      Interests (comma separated)
+                    </label>
+                    <input
+                      id="interests"
+                      type="text"
+                      value={interests}
+                      onChange={(e) => setInterests(e.target.value)}
+                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                      placeholder="Math, AI, Music..."
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label
+                        htmlFor="specialization"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        Specialization
+                      </label>
+                      <input
+                        id="specialization"
+                        type="text"
+                        value={specialization}
+                        onChange={(e) => setSpecialization(e.target.value)}
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                        placeholder="Expert in Machine Learning"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label
+                          htmlFor="category"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          Category
+                        </label>
+                        <select
+                          id="category"
+                          value={category}
+                          onChange={(e) => setCategory(e.target.value)}
+                          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                        >
+                          <option value="">Select</option>
+                          <option value="Programming">Programming</option>
+                          <option value="Math">Math</option>
+                          <option value="Science">Science</option>
+                          <option value="Design">Design</option>
+                          <option value="Business">Business</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="rate"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          Hourly Rate ($)
+                        </label>
+                        <input
+                          id="rate"
+                          type="number"
+                          value={hourlyRate}
+                          onChange={(e) => setHourlyRate(e.target.value)}
+                          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -256,10 +381,11 @@ export default function Register() {
                 type="button"
                 onClick={handleRegister}
                 disabled={loading}
-                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 ${loading
+                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 ${
+                  loading
                     ? "bg-gray-400 cursor-not-allowed hover:transform-none"
                     : "bg-gray-900 hover:bg-gray-800 hover:shadow-lg"
-                  }`}
+                }`}
               >
                 {loading ? (
                   <>

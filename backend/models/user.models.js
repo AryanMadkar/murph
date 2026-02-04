@@ -42,6 +42,21 @@ const userSchema = new mongoose.Schema(
       accountName: { type: String, default: null },
       isVerified: { type: Boolean, default: false },
     },
+
+    // --- Profile & Content Platform Fields ---
+    bio: { type: String, default: "" },
+    age: { type: Number, default: null },
+
+    // Student specific
+    interests: { type: [String], default: [] },
+
+    // Teacher specific
+    specialization: { type: String, default: "" },
+    category: { type: String, default: "" }, // e.g., "Programming", "Math", "Science"
+    hourlyRate: { type: Number, default: 0 }, // in paise
+
+    // Resume/Verification for teachers
+    isApproved: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

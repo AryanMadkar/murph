@@ -18,6 +18,8 @@ const authRoutes = require("./routes/auth.routes");
 const meetingRoutes = require("./routes/meeting.routes");
 const walletRoutes = require("./routes/wallet.routes");
 const escrowRoutes = require("./routes/escrow.routes");
+const materialRoutes = require("./routes/material.routes");
+const recommendationRoutes = require("./routes/recommendation.routes");
 
 app.use(cors());
 app.use(express.json());
@@ -26,6 +28,8 @@ app.use("/api", authRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/escrow", escrowRoutes);
+app.use("/api/materials", materialRoutes);
+app.use("/api/recommendations", recommendationRoutes);
 app.use("/api/attention", require("./routes/Attention.routes"));
 app.use("/api/insights", require("./routes/insights.routes"));
 

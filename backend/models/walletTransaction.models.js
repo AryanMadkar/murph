@@ -60,6 +60,8 @@ const walletTransactionSchema = new mongoose.Schema(
         "PLATFORM_FEE", // Murph platform fee
         "ADJUSTMENT", // Manual adjustment
         "ESCROW_LOCK", // Lock for escrow payment
+        "MATERIAL_PURCHASE", // Student buys a video/doc
+        "MATERIAL_EARNING", // Teacher earns from video/doc sale
       ],
       required: true,
     },
@@ -68,6 +70,11 @@ const walletTransactionSchema = new mongoose.Schema(
     sessionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Session",
+      default: null,
+    },
+    materialId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Material",
       default: null,
     },
     paymentIntentId: {
