@@ -3,15 +3,24 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 require("dotenv").config();
 
+const http = require("http");
+const setupSocket = require("./socket/socket");
+
 const app = express();
+const server = http.createServer(app);
 const port = process.env.PORT || 5000;
 
+// Setup Socket.io
+setupSocket(server);
+
 const authRoutes = require("./routes/auth.routes");
+const meetingRoutes = require("./routes/meeting.routes");
 
 app.use(cors());
 app.use(express.json());
 
 app.use("/api", authRoutes);
+app.use("/api/meetings", meetingRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -46,6 +55,6 @@ connectDB()
     console.log("MongoDB connection error", error);
   });
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
