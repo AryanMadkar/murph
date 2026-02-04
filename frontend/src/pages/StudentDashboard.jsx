@@ -20,14 +20,7 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Navigation items for sidebar
-const navItems = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "explore", label: "Explore", icon: Compass },
-  { id: "sessions", label: "My Sessions", icon: Calendar },
-  { id: "library", label: "My Library", icon: BookOpen },
-  { id: "wallet", label: "Wallet", icon: Wallet },
-];
+
 const socket = io(API_URL);
 
 export default function StudentDashboard() {
@@ -36,6 +29,12 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const pollingRef = useRef(null);
+
+  // State variables
+  const [loading, setLoading] = useState(false);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
 
 
 
@@ -50,6 +49,12 @@ export default function StudentDashboard() {
   const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
     return { Authorization: `Bearer ${token}` };
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
   };
 
   // Fetch wallet balance
@@ -421,331 +426,199 @@ export default function StudentDashboard() {
   const hasPendingPayment = localStorage.getItem("pendingPaymentIntent");
 
   return (
-    <div className="flex min-h-screen bg-[#F5F5F5] font-['Source_Sans_Pro']">
-      {/* Left Sidebar */}
-      <aside className="w-56 bg-white border-r border-gray-100 flex flex-col fixed h-full">
-        {/* Logo */}
-        <div className="p-6 pb-4">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Murph
-          </h1>
-        </div>
-
-        {/* Profile Section */}
-        <div className="px-6 py-4 flex flex-col items-center border-b border-gray-100">
-          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-medium mb-2">
-            Profile
-          </div>
-          <p className="text-sm font-semibold text-gray-900">
-            {user?.name || user?.email?.split("@")[0] || "Username"}
-          </p>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6">
-          <ul className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    if (item.id === "wallet") {
-                      navigate("/wallet");
-                    } else if (item.id === "explore") {
-                      navigate("/explore");
-                    }
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                    activeTab === item.id
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <item.icon className="w-5 h-5" />
-                  {item.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {/* Logout */}
-        <div className="p-4 border-t border-gray-100">
-          <button
-            onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all cursor-pointer"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 ml-56 p-10">
-        {/* Greeting */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold text-gray-900">
-            <span className="text-purple-600">Hi there,</span>{" "}
-            {user?.name || user?.email?.split("@")[0] || "User"}!
-          </h1>
-          <p className="text-3xl font-bold text-gray-900 mt-1">
-            Ready to start learning?
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* Greeting */}
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold text-gray-900">
+          <span className="text-purple-600">Hi there,</span>{" "}
+          {user?.name || user?.email?.split("@")[0] || "User"}!
+        </h1>
+        <p className="text-3xl font-bold text-gray-900 mt-1">
+          Ready to start learning?
+        </p>
+      </div>
 
       {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
 
-        {activeTab === "home" && (
-          <div className="space-y-6">
-            {/* Active Sessions - Join Video Call */}
-            {activeSessions.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-                  <Video className="h-5 w-5 text-green-500" />
-                  Live Sessions
-                </h2>
-                <div className="grid gap-4">
-                  {activeSessions.map((session) => (
-                    <div
-                      key={session._id}
-                      className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200 shadow-sm flex items-center justify-between"
+
+
+      {/* Active Sessions - Join Video Call */}
+      {activeSessions.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+            <Video className="h-5 w-5 text-green-500" />
+            Live Sessions
+          </h2>
+          <div className="grid gap-4">
+            {activeSessions.map((session) => (
+              <div
+                key={session._id}
+                className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200 shadow-sm flex items-center justify-between"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-xl">
+                    👨‍🏫
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">
+                      Session with{" "}
+                      {session.teacherId?.name ||
+                        session.teacherId?.email?.split("@")[0]}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {session.teacherId?.email}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() =>
+                    navigate(`/video-call/${session.roomId}`)
+                  }
+                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors cursor-pointer shadow-lg"
+                >
+                  <Video className="h-5 w-5" />
+                  Join Call
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* Content Recommendations Section */}
+      <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8 mb-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Compass className="h-5 w-5 text-purple-500" />
+            Recommended for You
+          </h2>
+          <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded font-black uppercase tracking-widest">
+            AI Powered
+          </span>
+        </div>
+
+        {recLoading ? (
+          <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+            <Loader2 className="h-8 w-8 animate-spin mb-2" />
+            <p>Finding perfect content...</p>
+          </div>
+        ) : recommendations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl">
+            <p>No recommendations yet. Tell us about your interests!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {recommendations.map((item) => (
+              <div
+                key={item._id}
+                className="group bg-gray-50 rounded-2xl overflow-hidden border border-transparent hover:border-purple-200 transition-all hover:shadow-lg"
+              >
+                <div className="h-32 bg-gray-200 flex items-center justify-center text-3xl">
+                  {item.type === "video" ? "🎬" : "📄"}
+                </div>
+                <div className="p-5">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">
+                      {item.category}
+                    </span>
+                    <span className="font-bold text-gray-900">
+                      ${item.priceInDollars.toFixed(2)}
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-1 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-gray-500 line-clamp-2 mb-4">
+                    {item.description}
+                  </p>
+                  <div className="flex items-center justify-between mt-auto">
+                    <p className="text-[10px] text-gray-400">
+                      By {item.teacherId?.name || "Expert"}
+                    </p>
+                    <button
+                      onClick={() =>
+                        handlePurchaseMaterial(item._id, item.price)
+                      }
+                      disabled={buyingMaterial === item._id}
+                      className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-full hover:bg-purple-600 transition-all cursor-pointer disabled:bg-gray-300 flex items-center gap-2"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-xl">
-                          👨‍🏫
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-gray-900">
-                            Session with{" "}
-                            {session.teacherId?.name ||
-                              session.teacherId?.email?.split("@")[0]}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {session.teacherId?.email}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() =>
-                          navigate(`/video-call/${session.roomId}`)
-                        }
-                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors cursor-pointer shadow-lg"
-                      >
-                        <Video className="h-5 w-5" />
-                        Join Call
-                      </button>
-                    </div>
-                  ))}
+                      {buyingMaterial === item._id ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Buying...
+                        </>
+                      ) : (
+                        "Buy Now"
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-            )}
-            {/* Content Recommendations Section */}
-            <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8 mb-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <Compass className="h-5 w-5 text-purple-500" />
-                  Recommended for You
-                </h2>
-                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded font-black uppercase tracking-widest">
-                  AI Powered
-                </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <BookOpen className="h-5 w-5 text-purple-500" />
+          My Purchased Content
+        </h2>
+
+        {myMaterials.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl">
+            <BookOpen className="h-10 w-10 mb-3 opacity-20" />
+            <p className="font-medium">Library is empty</p>
+            <p className="text-sm opacity-60">
+              Buy content from your recommendations to see it here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {myMaterials.map((item) => (
+              <div
+                key={item._id}
+                className="bg-white rounded-2xl overflow-hidden border border-gray-100 p-5 flex flex-col shadow-sm hover:shadow-md transition-all"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                    {item.type}
+                  </span>
+                </div>
+                <h3 className="font-bold text-gray-900 mb-1">
+                  {item.title}
+                </h3>
+                <p className="text-xs text-gray-500 line-clamp-2 mb-4 flex-grow">
+                  {item.description}
+                </p>
+                <button
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem("token");
+                      const res = await axios.get(
+                        `${API_URL}/api/materials/access/${item._id}`,
+                        {
+                          headers: { Authorization: `Bearer ${token}` },
+                        },
+                      );
+                      if (res.data.success) {
+                        window.open(res.data.url, "_blank");
+                      }
+                    } catch (err) {
+                      setMessage(
+                        "❌ Failed to access: " +
+                        (err.response?.data?.message || err.message),
+                      );
+                    }
+                  }}
+                  className="w-full py-3 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer"
+                >
+                  Access Content
+                </button>
               </div>
-
-              {recLoading ? (
-                <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-                  <Loader2 className="h-8 w-8 animate-spin mb-2" />
-                  <p>Finding perfect content...</p>
-                </div>
-              ) : recommendations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-48 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl">
-                  <p>No recommendations yet. Tell us about your interests!</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {recommendations.map((item) => (
-                    <div
-                      key={item._id}
-                      className="group bg-gray-50 rounded-2xl overflow-hidden border border-transparent hover:border-purple-200 transition-all hover:shadow-lg"
-                    >
-                      <div className="h-32 bg-gray-200 flex items-center justify-center text-3xl">
-                        {item.type === "video" ? "🎬" : "📄"}
-                      </div>
-                      <div className="p-5">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">
-                            {item.category}
-                          </span>
-                          <span className="font-bold text-gray-900">
-                            ${item.priceInDollars.toFixed(2)}
-                          </span>
-                        </div>
-                        <h3 className="font-bold text-gray-900 mb-1 line-clamp-1 group-hover:text-purple-600 transition-colors">
-                          {item.title}
-                        </h3>
-                        <p className="text-xs text-gray-500 line-clamp-2 mb-4">
-                          {item.description}
-                        </p>
-                        <div className="flex items-center justify-between mt-auto">
-                          <p className="text-[10px] text-gray-400">
-                            By {item.teacherId?.name || "Expert"}
-                          </p>
-                          <button
-                            onClick={() =>
-                              handlePurchaseMaterial(item._id, item.price)
-                            }
-                            disabled={buyingMaterial === item._id}
-                            className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-full hover:bg-purple-600 transition-all cursor-pointer disabled:bg-gray-300 flex items-center gap-2"
-                          >
-                            {buyingMaterial === item._id ? (
-                              <>
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                Buying...
-                              </>
-                            ) : (
-                              "Buy Now"
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            ))}
           </div>
         )}
-
-        {activeTab === "library" && (
-          <div className="space-y-6">
-            <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-purple-500" />
-                My Purchased Content
-              </h2>
-
-              {myMaterials.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl">
-                  <BookOpen className="h-10 w-10 mb-3 opacity-20" />
-                  <p className="font-medium">Library is empty</p>
-                  <p className="text-sm opacity-60">
-                    Buy content from your recommendations to see it here.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {myMaterials.map((item) => (
-                    <div
-                      key={item._id}
-                      className="bg-white rounded-2xl overflow-hidden border border-gray-100 p-5 flex flex-col shadow-sm hover:shadow-md transition-all"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-1 rounded">
-                          {item.type}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-gray-900 mb-1">
-                        {item.title}
-                      </h3>
-                      <p className="text-xs text-gray-500 line-clamp-2 mb-4 flex-grow">
-                        {item.description}
-                      </p>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const token = localStorage.getItem("token");
-                            const res = await axios.get(
-                              `${API_URL}/api/materials/access/${item._id}`,
-                              {
-                                headers: { Authorization: `Bearer ${token}` },
-                              },
-                            );
-                            if (res.data.success) {
-                              window.open(res.data.url, "_blank");
-                            }
-                          } catch (err) {
-                            setMessage(
-                              "❌ Failed to access: " +
-                                (err.response?.data?.message || err.message),
-                            );
-                          }
-                        }}
-                        className="w-full py-3 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer"
-                      >
-                        Access Content
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === "sessions" && (
-          <div className="space-y-6">
-            {/* Pending Session Requests */}
-            <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-                <Clock className="h-5 w-5 text-orange-500" />
-                Pending Requests
-                {pendingRequests.length > 0 && (
-                  <span className="text-sm font-medium text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
-                    {pendingRequests.length}
-                  </span>
-                )}
-              </h2>
-
-              {sessionsLoading ? (
-                <div className="flex items-center justify-center h-32 bg-white rounded-2xl border border-gray-100">
-                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  <span className="ml-2 text-gray-400">
-                    Loading sessions...
-                  </span>
-                </div>
-              ) : pendingRequests.length === 0 ? (
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
-                  <CheckCircle className="h-10 w-10 text-gray-200 mx-auto mb-2" />
-                  <p className="text-gray-400 font-medium">
-                    No pending requests
-                  </p>
-                  <p className="text-sm text-gray-300">
-                    Request a session from the Explore page
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {pendingRequests.map((request) => (
-                    <div
-                      key={request._id}
-                      className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-lg">
-                          ⏳
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {request.teacherId?.name ||
-                              request.teacherId?.email?.split("@")[0]}
-                          </h3>
-                          <p className="text-sm text-gray-400">
-                            {request.teacherId?.email}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
-                          Waiting for teacher...
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+      </div>
 
       {/* Payment Processing Banner */}
       {paymentStatus === "processing" && (
@@ -763,30 +636,28 @@ export default function StudentDashboard() {
         </div>
       )}
 
-        {/* Success/Error Message */}
-        {message && paymentStatus !== "processing" && (
-          <div
-            className={`p-4 mb-4 rounded-lg ${
-              paymentStatus === "success"
-                ? "bg-green-50 border border-green-200"
-                : paymentStatus === "failed"
-                  ? "bg-red-50 border border-red-200"
-                  : "bg-blue-50 border border-blue-200"
+      {/* Success/Error Message */}
+      {message && paymentStatus !== "processing" && (
+        <div
+          className={`p-4 mb-4 rounded-lg ${paymentStatus === "success"
+            ? "bg-green-50 border border-green-200"
+            : paymentStatus === "failed"
+              ? "bg-red-50 border border-red-200"
+              : "bg-blue-50 border border-blue-200"
             }`}
-          >
-            <p
-              className={`font-medium ${
-                paymentStatus === "success"
-                  ? "text-green-700"
-                  : paymentStatus === "failed"
-                    ? "text-red-700"
-                    : "text-blue-700"
+        >
+          <p
+            className={`font-medium ${paymentStatus === "success"
+              ? "text-green-700"
+              : paymentStatus === "failed"
+                ? "text-red-700"
+                : "text-blue-700"
               }`}
-            >
-              {message}
-            </p>
-          </div>
-        )}
+          >
+            {message}
+          </p>
+        </div>
+      )}
 
       {/* Topup Modal */}
       {showTopupModal && (
@@ -794,22 +665,21 @@ export default function StudentDashboard() {
           <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
             <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
 
-              {/* Quick Amount Buttons */}
-              <div className="grid grid-cols-4 gap-2 mb-4">
-                {[5, 10, 25, 50].map((amt) => (
-                  <button
-                    key={amt}
-                    onClick={() => setTopupAmount(amt.toString())}
-                    className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${
-                      topupAmount === amt.toString()
-                        ? "bg-purple-600 text-white"
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+            {/* Quick Amount Buttons */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {[5, 10, 25, 50].map((amt) => (
+                <button
+                  key={amt}
+                  onClick={() => setTopupAmount(amt.toString())}
+                  className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
                     }`}
-                  >
-                    ${amt}
-                  </button>
-                ))}
-              </div>
+                >
+                  ${amt}
+                </button>
+              ))}
+            </div>
 
             {/* Custom Amount Input */}
             <input
@@ -821,26 +691,26 @@ export default function StudentDashboard() {
               min="1"
             />
 
-              <div className="flex gap-3">
-                <button
-                  onClick={handleTopup}
-                  disabled={walletLoading || !topupAmount}
-                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
-                >
-                  {walletLoading
-                    ? "Processing..."
-                    : `Pay $${topupAmount || "0"}`}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowTopupModal(false);
-                    setTopupAmount("");
-                  }}
-                  className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleTopup}
+                disabled={walletLoading || !topupAmount}
+                className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
+              >
+                {walletLoading
+                  ? "Processing..."
+                  : `Pay $${topupAmount || "0"}`}
+              </button>
+              <button
+                onClick={() => {
+                  setShowTopupModal(false);
+                  setTopupAmount("");
+                }}
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
 
             <p className="text-xs text-gray-500 mt-3 text-center">
               Powered by Finternet • Secure Payment
@@ -848,6 +718,6 @@ export default function StudentDashboard() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
