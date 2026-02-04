@@ -64,6 +64,18 @@ export default function TeacherDashboard() {
       );
 
       if (res.data.success) {
+        // Start Attention Session silently
+        try {
+          await axios.post(`${API_URL}/api/attention/start`, {
+            meetingId,
+            studentId,
+            teacherId: user.id,
+            roomId: res.data.roomId,
+          });
+        } catch (err) {
+          console.error("Failed to start attention session:", err);
+        }
+
         setMessage("✅ Meeting accepted! Starting call...");
 
         socket.emit("meeting-accepted", {

@@ -2,7 +2,7 @@ const User = require("../models/user.models");
 const axios = require("axios");
 const FormData = require("form-data");
 
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL;
+const AI_AUTH_URL = process.env.AI_AUTH_URL;
 
 const register = async (req, res) => {
   try {

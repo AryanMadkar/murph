@@ -7,13 +7,9 @@ import Register from "./pages/Register";
 import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import VideoCall from "./pages/VideoCall";
+import SessionReview from "./pages/SessionReview";
 import Wallet from "./pages/Wallet";
 
-/**
- * DEV NOTE: This routing configuration includes the new Humble Home design (/)
- * along with the legacy system pages (Login, Dashboards, etc.) for the wider team.
- * All styling in the components directory is now strictly powered by Tailwind CSS.
- */
 function App() {
   return (
     <BrowserRouter>
@@ -27,6 +23,7 @@ function App() {
         <Route path="/student-dashboard" element={<StudentDashboard />} />
         <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
         <Route path="/video-call/:roomId" element={<VideoCall />} />
+        <Route path="/session-review/:sessionId" element={<SessionReview />} />
         <Route path="/wallet" element={<Wallet />} />
       </Routes>
     </BrowserRouter>

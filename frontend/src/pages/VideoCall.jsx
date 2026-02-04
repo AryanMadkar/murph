@@ -4,9 +4,18 @@ import { io } from "socket.io-client";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL;
+const AI_SESSION_URL = "http://localhost:8000";
 
 const config = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+  ],
+  iceTransportPolicy: "all",
+  bundlePolicy: "balanced",
 };
 
 export default function VideoCall() {
@@ -53,8 +62,15 @@ export default function VideoCall() {
       try {
         addLog("Getting user media...");
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { max: 24 },
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+          },
         });
 
         localStreamRef.current = stream;
@@ -127,6 +143,17 @@ export default function VideoCall() {
         setMessages((prev) => [...prev, { ...payload, isMe: false }]);
         scrollToBottom();
       });
+
+      // Handle mutual termination
+      socket.on("session-ended", (payload) => {
+        addLog("The other participant has ended the session.");
+        // Redirect teacher to review if they didn't initiate the end
+        if (currentUser?.role === "teacher" && payload.attentionSessionId) {
+          navigate(`/session-review/${payload.attentionSessionId}`);
+        } else {
+          navigate(-1);
+        }
+      });
     };
 
     const createPeerConnection = (userId) => {
@@ -137,7 +164,19 @@ export default function VideoCall() {
 
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => {
-          pc.addTrack(track, localStreamRef.current);
+          const sender = pc.addTrack(track, localStreamRef.current);
+
+          // Apply bitrate limits to video track
+          if (track.kind === "video") {
+            const params = sender.getParameters();
+            if (!params.encodings) {
+              params.encodings = [{}];
+            }
+            params.encodings[0].maxBitrate = 800 * 1000; // 800 kbps
+            sender
+              .setParameters(params)
+              .catch((e) => console.error("Bitrate set error", e));
+          }
         });
       }
 
@@ -176,6 +215,78 @@ export default function VideoCall() {
     };
   }, [roomId, navigate]);
 
+  // ================= ATTENTION TRACKING (STUDENT ONLY) =================
+  useEffect(() => {
+    if (currentUser?.role !== "student" || !connected) return;
+
+    let sessionId = null;
+    let aiSessionId = null;
+
+    const initAttention = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/attention/live/${roomId}`);
+        if (res.data.success) {
+          sessionId = res.data.sessionId || res.data.session?._id;
+        }
+        const aiRes = await axios.post(`${AI_SESSION_URL}/session/start`);
+        aiSessionId = aiRes.data.session_id;
+        console.log("Attention tracking initialized:", {
+          sessionId,
+          aiSessionId,
+        });
+      } catch (err) {
+        console.error("Failed to init attention tracking:", err);
+      }
+    };
+
+    initAttention();
+
+    const interval = setInterval(async () => {
+      if (!sessionId || !aiSessionId || !localVideoRef.current) return;
+
+      try {
+        const video = localVideoRef.current;
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const frameData = canvas.toDataURL("image/jpeg", 0.6);
+
+        const blob = await (await fetch(frameData)).blob();
+        const formData = new FormData();
+        formData.append("file", blob, "frame.jpg");
+
+        const aiRes = await axios.post(
+          `${AI_SESSION_URL}/session/frame/${aiSessionId}`,
+          formData,
+        );
+
+        if (aiRes.data.face_detected) {
+          await axios.post(`${API_URL}/api/attention/record`, {
+            sessionId,
+            score: aiRes.data.attention_score,
+            stabilityScore: aiRes.data.stability_score,
+            centeringScore: aiRes.data.centering_score,
+            faceDetected: true,
+          });
+
+          socketRef.current.emit("attention-update", {
+            roomId,
+            attentionScore: aiRes.data.attention_score,
+            stabilityScore: aiRes.data.stability_score,
+            centeringScore: aiRes.data.centering_score,
+            faceDetected: true,
+          });
+        }
+      } catch (err) {
+        console.warn("Silent tracking error:", err.message);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [connected, currentUser, roomId]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -199,17 +310,27 @@ export default function VideoCall() {
   };
 
   const endCall = async () => {
-    // If teacher, complete the session to get paid
-    // If student, just leave (or can also trigger complete if they want)
-    // Simplified End Call - No Payment Logic
     const confirmEnd = window.confirm(
       "Are you sure you want to end the session?",
     );
     if (!confirmEnd) return;
 
     try {
-      await axios.post(`${API_URL}/api/meetings/complete`, { roomId });
+      const res = await axios.post(`${API_URL}/api/meetings/complete`, {
+        roomId,
+      });
       console.log("Session marked as completed");
+
+      // Notify the other user that the session is over
+      socketRef.current.emit("session-ended", {
+        roomId,
+        attentionSessionId: res.data.attentionSessionId,
+      });
+
+      if (currentUser?.role === "teacher" && res.data.attentionSessionId) {
+        navigate(`/session-review/${res.data.attentionSessionId}`);
+        return;
+      }
     } catch (err) {
       console.error("Error marking session completed:", err);
     }
