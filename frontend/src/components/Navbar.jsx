@@ -1,13 +1,11 @@
 const Navbar = () => {
     const navLinks = [
-        { name: '60-Second Fit Test', href: '#fit-test' },
-        { name: 'Pricing', href: '#pricing' },
         { name: 'Security', href: '#security' },
         { name: 'About', href: '#about' },
     ];
 
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 bg-white">
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FAFAFA]">
             <div className="max-w-6xl mx-auto px-10 py-5 flex items-center justify-between">
                 {/* Logo */}
                 <a href="/" className="flex items-center gap-2.5 no-underline">
