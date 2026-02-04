@@ -33,7 +33,6 @@ export default function Register() {
     setLoading(true);
     setMessage("");
 
-    // Stop camera before processing
     const stream = videoRef.current.srcObject;
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
@@ -55,10 +54,9 @@ export default function Register() {
         const response = await axios.post(`${API_URL}/register`, formData);
         if (response.data.success) {
           setMessage("✅ Registration successful! Redirecting...");
-          // Store user info in localStorage
           localStorage.setItem("user", JSON.stringify(response.data.user));
           setTimeout(() => {
-            navigate(role === "teacher" ? "/teacher" : "/student");
+            navigate(role === "teacher" ? "/teacher-dashboard" : "/student-dashboard");
           }, 1500);
         }
       } catch (err) {
@@ -70,99 +68,68 @@ export default function Register() {
   };
 
   return (
-    <div
-      style={{
-        padding: "40px",
-        maxWidth: "500px",
-        margin: "0 auto",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h1>Register</h1>
+    <div className="p-10 max-w-md mx-auto font-sans">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Register</h1>
 
-      <div style={{ marginBottom: "20px" }}>
+      <div className="mb-5">
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "10px",
-            fontSize: "16px",
-            marginBottom: "10px",
-          }}
+          className="w-full p-3 text-base border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
         />
 
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          style={{ width: "100%", padding: "10px", fontSize: "16px" }}
+          className="w-full p-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
         >
           <option value="student">Student</option>
           <option value="teacher">Teacher</option>
         </select>
       </div>
 
-      <div style={{ marginBottom: "20px" }}>
+      <div className="mb-5">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          style={{
-            width: "100%",
-            background: "#000",
-            borderRadius: "8px",
-            transform: "scaleX(-1)",
-          }}
+          className="w-full bg-black rounded-lg scale-x-[-1]"
         />
-        <canvas ref={canvasRef} style={{ display: "none" }} />
+        <canvas ref={canvasRef} className="hidden" />
       </div>
 
       {loading ? (
         <button
           disabled
-          style={{
-            padding: "15px 30px",
-            fontSize: "16px",
-            cursor: "not-allowed",
-            background: "#ccc",
-            color: "#666",
-            border: "none",
-          }}
+          className="px-8 py-4 text-base cursor-not-allowed bg-gray-300 text-gray-500 rounded-lg"
         >
           ⏳ Processing...
         </button>
       ) : !cameraActive ? (
         <button
           onClick={startCamera}
-          style={{ padding: "15px 30px", fontSize: "16px", cursor: "pointer" }}
+          className="px-8 py-4 text-base cursor-pointer bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-300 transition-colors"
         >
           📷 Start Camera
         </button>
       ) : (
         <button
           onClick={captureAndRegister}
-          style={{
-            padding: "15px 30px",
-            fontSize: "16px",
-            cursor: "pointer",
-            background: "#4CAF50",
-            color: "#fff",
-            border: "none",
-          }}
+          className="px-8 py-4 text-base cursor-pointer bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
         >
           ✅ Register with Face
         </button>
       )}
 
       {message && (
-        <p style={{ marginTop: "20px", fontWeight: "bold" }}>{message}</p>
+        <p className="mt-5 font-bold text-gray-800">{message}</p>
       )}
 
-      <p style={{ marginTop: "30px" }}>
-        Already registered? <a href="/login">Login here</a>
+      <p className="mt-8 text-gray-600">
+        Already registered? <a href="/login" className="text-blue-500 hover:underline">Login here</a>
       </p>
     </div>
   );

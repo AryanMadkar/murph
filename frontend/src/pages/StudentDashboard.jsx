@@ -22,10 +22,8 @@ export default function StudentDashboard() {
     const parsedUser = JSON.parse(userData);
     setUser(parsedUser);
 
-    // Register with socket
     socket.emit("register-user", parsedUser.id);
 
-    // Fetch teachers
     axios
       .get(`${API_URL}/api/meetings/teachers`)
       .then((res) => {
@@ -37,10 +35,9 @@ export default function StudentDashboard() {
         setLoading(false);
       });
 
-    // Listen for meeting accepted
     socket.on("meeting-accepted", ({ roomId }) => {
       setMessage("🎉 Meeting accepted! Joining call...");
-      setTimeout(() => navigate(`/call/${roomId}`), 1500);
+      setTimeout(() => navigate(`/video-call/${roomId}`), 1500);
     });
 
     return () => {
@@ -57,7 +54,6 @@ export default function StudentDashboard() {
 
       if (res.data.success) {
         setMessage("✅ Meeting request sent! Waiting for teacher...");
-        // Also emit socket event for real-time notification
         socket.emit("meeting-request", {
           teacherId,
           studentEmail: user.email,
@@ -75,61 +71,40 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div style={{ padding: "40px", fontFamily: "sans-serif" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <h1>Student Dashboard</h1>
+    <div className="p-10 font-sans min-h-screen bg-gray-50">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
         <button
           onClick={logout}
-          style={{ padding: "10px 20px", cursor: "pointer" }}
+          className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
         >
           Logout
         </button>
       </div>
 
-      {user && <p>Welcome, {user.email}</p>}
+      {user && <p className="text-gray-600 mb-4">Welcome, {user.email}</p>}
 
       {message && (
-        <p style={{ fontWeight: "bold", color: "#2196F3" }}>{message}</p>
+        <p className="font-bold text-blue-500 mb-4">{message}</p>
       )}
 
-      <h2>Available Teachers</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">Available Teachers</h2>
 
       {loading ? (
-        <p>Loading...</p>
+        <p className="text-gray-500">Loading...</p>
       ) : teachers.length === 0 ? (
-        <p>No teachers available</p>
+        <p className="text-gray-500">No teachers available</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
+        <ul className="list-none p-0">
           {teachers.map((teacher) => (
             <li
               key={teacher._id}
-              style={{
-                padding: "15px",
-                marginBottom: "10px",
-                background: "#f5f5f5",
-                borderRadius: "8px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
+              className="p-4 mb-3 bg-white rounded-lg flex justify-between items-center shadow-sm border border-gray-100"
             >
-              <span>{teacher.email}</span>
+              <span className="text-gray-700">{teacher.email}</span>
               <button
                 onClick={() => requestMeeting(teacher._id)}
-                style={{
-                  padding: "10px 20px",
-                  background: "#4CAF50",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
+                className="px-5 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg cursor-pointer transition-colors"
               >
                 📞 Request Meeting
               </button>

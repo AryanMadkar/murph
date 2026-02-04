@@ -27,7 +27,6 @@ export default function VideoCall() {
     }
 
     const initCall = async () => {
-      // Get local media
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
@@ -35,32 +34,26 @@ export default function VideoCall() {
       localStreamRef.current = stream;
       localVideoRef.current.srcObject = stream;
 
-      // Create peer connection
       peerConnectionRef.current = new RTCPeerConnection(config);
 
-      // Add local tracks
       stream.getTracks().forEach((track) => {
         peerConnectionRef.current.addTrack(track, stream);
       });
 
-      // Handle remote track
       peerConnectionRef.current.ontrack = (event) => {
         remoteVideoRef.current.srcObject = event.streams[0];
         setConnected(true);
         setCallStatus("Connected");
       };
 
-      // Handle ICE candidates
       peerConnectionRef.current.onicecandidate = (event) => {
         if (event.candidate) {
           socket.emit("ice-candidate", { roomId, candidate: event.candidate });
         }
       };
 
-      // Join room
       socket.emit("join-room", roomId, user.id);
 
-      // Handle user connected (create offer)
       socket.on("user-connected", async () => {
         setCallStatus("User joined, creating offer...");
         const offer = await peerConnectionRef.current.createOffer();
@@ -68,7 +61,6 @@ export default function VideoCall() {
         socket.emit("offer", { roomId, caller: user.id, sdp: offer });
       });
 
-      // Handle offer
       socket.on("offer", async (payload) => {
         setCallStatus("Received offer, creating answer...");
         await peerConnectionRef.current.setRemoteDescription(
@@ -79,7 +71,6 @@ export default function VideoCall() {
         socket.emit("answer", { roomId, caller: user.id, sdp: answer });
       });
 
-      // Handle answer
       socket.on("answer", async (payload) => {
         await peerConnectionRef.current.setRemoteDescription(
           new RTCSessionDescription(payload.sdp),
@@ -87,7 +78,6 @@ export default function VideoCall() {
         setCallStatus("Call connected");
       });
 
-      // Handle ICE candidate
       socket.on("ice-candidate", async (payload) => {
         if (peerConnectionRef.current) {
           await peerConnectionRef.current.addIceCandidate(
@@ -96,7 +86,6 @@ export default function VideoCall() {
         }
       });
 
-      // Handle user disconnected
       socket.on("user-disconnected", () => {
         setCallStatus("User disconnected");
         setConnected(false);
@@ -106,7 +95,6 @@ export default function VideoCall() {
     initCall();
 
     return () => {
-      // Cleanup
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
@@ -132,60 +120,38 @@ export default function VideoCall() {
   };
 
   return (
-    <div
-      style={{
-        padding: "20px",
-        fontFamily: "sans-serif",
-        background: "#1a1a2e",
-        minHeight: "100vh",
-        color: "#fff",
-      }}
-    >
-      <h1>Video Call</h1>
-      <p>Room: {roomId}</p>
-      <p>Status: {callStatus}</p>
+    <div className="p-5 font-sans bg-slate-900 min-h-screen text-white">
+      <h1 className="text-3xl font-bold mb-2">Video Call</h1>
+      <p className="text-gray-400">Room: {roomId}</p>
+      <p className={`mb-6 ${connected ? 'text-green-400' : 'text-yellow-400'}`}>
+        Status: {callStatus}
+      </p>
 
-      <div
-        style={{
-          display: "flex",
-          gap: "20px",
-          marginTop: "20px",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: "300px" }}>
-          <h3>You</h3>
+      <div className="flex gap-5 mt-5 flex-wrap">
+        <div className="flex-1 min-w-[300px]">
+          <h3 className="text-lg font-semibold mb-2">You</h3>
           <video
             ref={localVideoRef}
             autoPlay
             playsInline
             muted
-            style={{ width: "100%", background: "#000", borderRadius: "12px" }}
+            className="w-full bg-black rounded-xl"
           />
         </div>
-        <div style={{ flex: 1, minWidth: "300px" }}>
-          <h3>Remote</h3>
+        <div className="flex-1 min-w-[300px]">
+          <h3 className="text-lg font-semibold mb-2">Remote</h3>
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            style={{ width: "100%", background: "#000", borderRadius: "12px" }}
+            className="w-full bg-black rounded-xl"
           />
         </div>
       </div>
 
       <button
         onClick={endCall}
-        style={{
-          marginTop: "30px",
-          padding: "15px 40px",
-          fontSize: "18px",
-          background: "#e53935",
-          color: "#fff",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-        }}
+        className="mt-8 px-10 py-4 text-lg bg-red-500 hover:bg-red-600 text-white rounded-lg cursor-pointer transition-colors"
       >
         End Call
       </button>
