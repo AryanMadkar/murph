@@ -11,6 +11,12 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Legacy field for data migration
+    embedding: {
+      type: [Number],
+      required: false,
+    },
+
     walletBalance: {
       type: Number,
       default: 0,

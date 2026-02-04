@@ -92,16 +92,24 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-['Source_Sans_Pro']">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <a href="/" className="flex items-center justify-center gap-2.5 no-underline mb-6">
+        <a
+          href="/"
+          className="flex items-center justify-center gap-2.5 no-underline mb-6"
+        >
           <span className="w-8 h-8 bg-orange-500 rounded-full"></span>
-          <span className="text-2xl font-bold text-gray-900 tracking-tight">Humble</span>
+          <span className="text-2xl font-bold text-gray-900 tracking-tight">
+            Humble
+          </span>
         </a>
         <h2 className="mt-2 text-center text-3xl font-bold tracking-tight text-gray-900">
           Create your account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or{' '}
-          <Link to="/login" className="font-medium text-orange-600 hover:text-orange-500">
+          Or{" "}
+          <Link
+            to="/login"
+            className="font-medium text-orange-600 hover:text-orange-500"
+          >
             sign in to your existing account
           </Link>
         </p>
@@ -110,28 +118,31 @@ export default function Register() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl shadow-gray-100 sm:rounded-2xl sm:px-10 border border-gray-100">
           <div className="space-y-6">
-
             {/* Role Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                I am a...
+              </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setRole('student')}
-                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${role === 'student'
-                      ? 'bg-gray-900 text-white shadow-md'
-                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                    }`}
+                  onClick={() => setRole("student")}
+                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                    role === "student"
+                      ? "bg-gray-900 text-white shadow-md"
+                      : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                  }`}
                 >
                   Student
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRole('teacher')}
-                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${role === 'teacher'
-                      ? 'bg-gray-900 text-white shadow-md'
-                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                    }`}
+                  onClick={() => setRole("teacher")}
+                  className={`flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                    role === "teacher"
+                      ? "bg-gray-900 text-white shadow-md"
+                      : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                  }`}
                 >
                   Teacher
                 </button>
@@ -140,7 +151,10 @@ export default function Register() {
 
             {/* Email Input */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email address
               </label>
               <div className="mt-1">
@@ -158,24 +172,7 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Secret Key Input */}
-            <div>
-              <label htmlFor="secretKey" className="block text-sm font-medium text-gray-700">
-                Registration Key
-              </label>
-              <div className="mt-1">
-                <input
-                  id="secretKey"
-                  name="secretKey"
-                  type="password"
-                  required
-                  value={secretKey}
-                  onChange={(e) => setSecretKey(e.target.value)}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2.5 placeholder-gray-400 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500 sm:text-sm"
-                  placeholder="Enter secret key"
-                />
-              </div>
-            </div>
+            {/* Secret Key Input REMOVED */}
 
             {/* Camera Section */}
             <div className="space-y-2">
@@ -188,15 +185,20 @@ export default function Register() {
                   autoPlay
                   playsInline
                   muted
-                  className={`absolute inset-0 w-full h-full object-cover scale-x-[-1] ${!cameraActive && 'hidden'}`}
+                  className={`absolute inset-0 w-full h-full object-cover scale-x-[-1] ${!cameraActive && "hidden"}`}
                 />
 
                 {!cameraActive && (
                   <div className="text-center p-6">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 mb-3">
-                      <Camera className="h-6 w-6 text-orange-600" aria-hidden="true" />
+                      <Camera
+                        className="h-6 w-6 text-orange-600"
+                        aria-hidden="true"
+                      />
                     </div>
-                    <p className="text-sm text-gray-500">Camera permission required for face ID</p>
+                    <p className="text-sm text-gray-500">
+                      Camera permission required for face ID
+                    </p>
                   </div>
                 )}
                 <canvas ref={canvasRef} className="hidden" />
@@ -219,10 +221,15 @@ export default function Register() {
               <div className="rounded-md bg-red-50 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <AlertCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
+                    <AlertCircle
+                      className="h-5 w-5 text-red-400"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">Registration Failed</h3>
+                    <h3 className="text-sm font-medium text-red-800">
+                      Registration Failed
+                    </h3>
                     <div className="mt-2 text-sm text-red-700">
                       <p>{message}</p>
                     </div>
@@ -235,10 +242,15 @@ export default function Register() {
               <div className="rounded-md bg-green-50 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <CheckCircle className="h-5 w-5 text-green-400" aria-hidden="true" />
+                    <CheckCircle
+                      className="h-5 w-5 text-green-400"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-green-800">Registration Successful</h3>
+                    <h3 className="text-sm font-medium text-green-800">
+                      Registration Successful
+                    </h3>
                     <div className="mt-2 text-sm text-green-700">
                       <p>Redirecting you to dashboard...</p>
                     </div>
@@ -253,10 +265,11 @@ export default function Register() {
                 type="button"
                 onClick={captureAndRegister}
                 disabled={loading || !cameraActive}
-                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 ${loading || !cameraActive
-                    ? 'bg-gray-400 cursor-not-allowed hover:transform-none'
-                    : 'bg-gray-900 hover:bg-gray-800 hover:shadow-lg'
-                  }`}
+                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 ${
+                  loading || !cameraActive
+                    ? "bg-gray-400 cursor-not-allowed hover:transform-none"
+                    : "bg-gray-900 hover:bg-gray-800 hover:shadow-lg"
+                }`}
               >
                 {loading ? (
                   <>
@@ -264,7 +277,7 @@ export default function Register() {
                     Processing...
                   </>
                 ) : (
-                  'Complete Registration'
+                  "Complete Registration"
                 )}
               </button>
             </div>

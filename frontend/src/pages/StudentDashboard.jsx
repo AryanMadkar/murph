@@ -15,11 +15,19 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
-    if (!userData) {
+    let parsedUser = null;
+    try {
+      if (userData && userData !== "undefined") {
+        parsedUser = JSON.parse(userData);
+      }
+    } catch (e) {
+      console.error("Error parsing user data:", e);
+    }
+
+    if (!parsedUser || !parsedUser.id) {
       navigate("/login");
       return;
     }
-    const parsedUser = JSON.parse(userData);
     setUser(parsedUser);
 
     socket.emit("register-user", parsedUser.id);
