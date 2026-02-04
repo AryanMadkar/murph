@@ -1,17 +1,19 @@
 import uvicorn
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from deepface import DeepFace
 import numpy as np
+import cv2
 import tempfile
 import os
+from functools import lru_cache
+import face_recognition
+from io import BytesIO
 
-# Suppress TensorFlow oneDNN warning
+# Suppress warnings
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-
 
 # Configure logging
 logging.basicConfig(
@@ -20,29 +22,36 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 # Initialize FastAPI app
 app = FastAPI(
     title="Face Authentication AI Service",
-    description="DeepFace-based face encoding and matching API",
-    version="1.0.0"
+    description="Optimized face encoding and matching API",
+    version="2.0.1"
 )
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Configuration
-# Options: VGG-Face, Facenet, OpenFace, DeepFace, DeepID, ArcFace, Dlib
-FACE_MODEL = os.getenv("FACE_MODEL", "Facenet")
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.9"))
-ENFORCE_DETECTION = os.getenv("ENFORCE_DETECTION", "False").lower() == "true"
-# 'skip' avoids detection logic and uses the whole image - very reliable for webcams
-DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "skip")
+FACE_MODEL = os.getenv("FACE_MODEL", "Facenet")  # Kept for compatibility
+# Optimized threshold
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.6"))
+ENFORCE_DETECTION = os.getenv("ENFORCE_DETECTION", "True").lower() == "true"
+# hog is faster, cnn is more accurate
+DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "hog")
+DISTANCE_METRIC = os.getenv(
+    "DISTANCE_METRIC", "euclidean")  # euclidean or cosine
+
+# Image preprocessing settings
+MAX_IMAGE_SIZE = 1024  # Resize large images for faster processing
+# More jitters = more accurate but slower
+NUM_JITTERS = int(os.getenv("NUM_JITTERS", "1"))
 
 
 # Pydantic models
@@ -55,62 +64,168 @@ class MatchRequest(BaseModel):
 class EncodingResponse(BaseModel):
     """Response model for face encoding"""
     success: bool
-    embedding: List[float] = None
-    error: str = None
+    embedding: Optional[List[float]] = None
+    error: Optional[str] = None
 
 
 class MatchResponse(BaseModel):
     """Response model for face matching"""
     match: bool
-    distance: float = None
+    distance: Optional[float] = None
+
 
 # ================== HELPER FUNCTIONS ==================
 
-
-def save_temp_image(upload_file: UploadFile) -> str:
+def preprocess_image(image_bytes: bytes) -> np.ndarray:
     """
-    Save uploaded image to a temporary file
+    Preprocess image for face detection with OpenCV for better compatibility
 
     Args:
-        upload_file: FastAPI UploadFile object
+        image_bytes: Raw image bytes
 
     Returns:
-        str: Path to temporary file
+        np.ndarray: Preprocessed image in RGB format (uint8)
     """
     try:
-        # Extract file extension
-        filename = upload_file.filename or "image.jpg"
-        suffix = filename.split(".")[-1] if "." in filename else "jpg"
-
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as temp:
-            content = upload_file.file.read()
-            temp.write(content)
-            temp_path = temp.name
-
-        logger.info(f"Saved temporary image: {temp_path}")
-        return temp_path
-
+        # Convert bytes to numpy array
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        
+        # Decode image with OpenCV (most compatible with face_recognition)
+        image_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if image_bgr is None:
+            # If OpenCV fails, try PIL as fallback
+            logger.warning("OpenCV failed to decode image, trying PIL fallback")
+            from PIL import Image
+            
+            try:
+                pil_image = Image.open(BytesIO(image_bytes))
+                logger.info(f"PIL loaded image - Mode: {pil_image.mode}, Size: {pil_image.size}")
+                
+                # Convert to RGB if needed
+                if pil_image.mode != "RGB":
+                    pil_image = pil_image.convert("RGB")
+                    logger.info("Converted image to RGB mode")
+                
+                # Convert to numpy array
+                image_rgb = np.array(pil_image)
+                
+                # Ensure uint8 type
+                if image_rgb.dtype != np.uint8:
+                    image_rgb = image_rgb.astype(np.uint8)
+                    logger.info(f"Converted array to uint8 from {image_rgb.dtype}")
+                
+                return np.ascontiguousarray(image_rgb, dtype=np.uint8)
+                
+            except Exception as pil_error:
+                raise ValueError(f"Both OpenCV and PIL failed to decode image. PIL error: {str(pil_error)}")
+        
+        # OpenCV succeeded - convert BGR to RGB
+        logger.info(f"OpenCV decoded image - Shape: {image_bgr.shape}, Dtype: {image_bgr.dtype}")
+        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+        
+        # Resize if too large
+        height, width = image_rgb.shape[:2]
+        if max(width, height) > MAX_IMAGE_SIZE:
+            ratio = MAX_IMAGE_SIZE / max(width, height)
+            new_width = int(width * ratio)
+            new_height = int(height * ratio)
+            image_rgb = cv2.resize(image_rgb, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            logger.info(f"Resized image from {width}x{height} to {new_width}x{new_height}")
+        
+        # Ensure contiguous array in memory
+        return np.ascontiguousarray(image_rgb, dtype=np.uint8)
+        
     except Exception as e:
-        logger.error(f"Error saving temporary image: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Error saving image: {str(e)}")
+        logger.error(f"Error preprocessing image: {str(e)}")
+        raise
 
 
-def cleanup_temp_file(file_path: str) -> None:
+def encode_face_optimized(image_rgb: np.ndarray) -> Optional[List[float]]:
     """
-    Remove temporary file
+    Generate face embedding using optimized face_recognition library
 
     Args:
-        file_path: Path to file to remove
+        image_rgb: Image in RGB format
+
+    Returns:
+        List[float]: Face embedding or None if no face detected
     """
     try:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            logger.info(f"Cleaned up temporary file: {file_path}")
+        # Validate image format for face_recognition
+        if len(image_rgb.shape) != 3 or image_rgb.shape[2] != 3:
+            raise ValueError(f"Invalid image shape: {image_rgb.shape}. Expected 3-channel RGB image.")
+        
+        if image_rgb.dtype != np.uint8:
+            logger.warning(f"Converting image from {image_rgb.dtype} to uint8")
+            image_rgb = image_rgb.astype(np.uint8)
+        
+        logger.info(f"Encoding face - Shape: {image_rgb.shape}, Dtype: {image_rgb.dtype}, Min: {image_rgb.min()}, Max: {image_rgb.max()}")
+        
+        # Detect face locations
+        face_locations = face_recognition.face_locations(
+            image_rgb,
+            model=DETECTOR_BACKEND
+        )
+
+        if not face_locations:
+            logger.warning("No face detected in image")
+            return None
+
+        # Use the first detected face
+        if len(face_locations) > 1:
+            logger.info(
+                f"Multiple faces detected ({len(face_locations)}), using the first one")
+
+        # Generate face encodings
+        face_encodings = face_recognition.face_encodings(
+            image_rgb,
+            known_face_locations=face_locations,
+            num_jitters=NUM_JITTERS
+        )
+
+        if not face_encodings:
+            logger.warning("Failed to generate face encoding")
+            return None
+
+        # Return first encoding as list
+        embedding = face_encodings[0].tolist()
+        logger.info(
+            f"Successfully generated face encoding (dim: {len(embedding)})")
+
+        return embedding
+
     except Exception as e:
-        logger.warning(
-            f"Error cleaning up temporary file {file_path}: {str(e)}")
+        logger.error(f"Error encoding face: {str(e)}")
+        raise
+
+
+def calculate_distance(embedding1: np.ndarray, embedding2: np.ndarray, metric: str = "euclidean") -> float:
+    """
+    Calculate distance between two embeddings
+
+    Args:
+        embedding1: First embedding
+        embedding2: Second embedding
+        metric: Distance metric ('euclidean' or 'cosine')
+
+    Returns:
+        float: Distance value
+    """
+    if metric == "cosine":
+        # Cosine distance: 1 - cosine_similarity
+        dot_product = np.dot(embedding1, embedding2)
+        norm1 = np.linalg.norm(embedding1)
+        norm2 = np.linalg.norm(embedding2)
+
+        if norm1 > 0 and norm2 > 0:
+            cosine_similarity = dot_product / (norm1 * norm2)
+            return 1 - cosine_similarity
+        else:
+            return 2.0  # Maximum distance
+    else:
+        # Euclidean distance (default for face_recognition)
+        return np.linalg.norm(embedding1 - embedding2)
 
 
 # ================== API ENDPOINTS ==================
@@ -120,8 +235,9 @@ async def root():
     """Root endpoint - API information"""
     return {
         "service": "Face Authentication AI Service",
-        "version": "1.0.0",
+        "version": "2.0.1",
         "status": "running",
+        "optimization": "face_recognition library with preprocessing",
         "endpoints": {
             "encode": "/encode",
             "match": "/match",
@@ -135,11 +251,13 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "model": FACE_MODEL,
+        "model": "face_recognition (dlib)",
         "threshold": MATCH_THRESHOLD,
         "detector": DETECTOR_BACKEND,
         "distance_metric": DISTANCE_METRIC,
-        "enforce_detection": ENFORCE_DETECTION
+        "enforce_detection": ENFORCE_DETECTION,
+        "max_image_size": MAX_IMAGE_SIZE,
+        "num_jitters": NUM_JITTERS
     }
 
 
@@ -154,49 +272,45 @@ async def encode_face(file: UploadFile = File(...)):
     Returns:
         EncodingResponse: Success status and face embedding or error message
     """
-    temp_path = None
-
     try:
         # Validate file
         if not file:
             raise HTTPException(status_code=400, detail="No file provided")
 
-        # Save uploaded file temporarily
-        temp_path = save_temp_image(file)
-
         logger.info(f"Processing face encoding for file: {file.filename}")
 
-        # Generate face embedding using DeepFace
-        result = DeepFace.represent(
-            img_path=temp_path,
-            model_name=FACE_MODEL,
-            enforce_detection=ENFORCE_DETECTION,
-            detector_backend=DETECTOR_BACKEND
-        )
-
-        # Extract embedding from result
-        if result and len(result) > 0:
-            embedding = result[0]["embedding"]
-            logger.info(
-                f"Successfully encoded face. Embedding dimension: {len(embedding)}")
-
+        # Read file content
+        content = await file.read()
+        
+        # Validate content
+        if not content or len(content) == 0:
             return EncodingResponse(
-                success=True,
-                embedding=embedding
+                success=False,
+                error="Empty file provided"
             )
-        else:
-            logger.warning("No face detected in the image")
+
+        # Preprocess image
+        image_rgb = preprocess_image(content)
+
+        # Generate embedding
+        embedding = encode_face_optimized(image_rgb)
+
+        if embedding is None:
             return EncodingResponse(
                 success=False,
                 error="No face detected in the image"
             )
 
+        return EncodingResponse(
+            success=True,
+            embedding=embedding
+        )
+
     except ValueError as e:
-        # DeepFace raises ValueError when no face is detected
         logger.warning(f"Face detection failed: {str(e)}")
         return EncodingResponse(
             success=False,
-            error="No face detected in the image"
+            error=f"Error processing image: {str(e)}"
         )
 
     except Exception as e:
@@ -205,11 +319,6 @@ async def encode_face(file: UploadFile = File(...)):
             success=False,
             error=f"Error processing image: {str(e)}"
         )
-
-    finally:
-        # Clean up temporary file
-        if temp_path:
-            cleanup_temp_file(temp_path)
 
 
 @app.post("/match", response_model=MatchResponse)
@@ -235,46 +344,43 @@ async def match_faces(data: MatchRequest):
 
         # Convert to numpy arrays
         new_embedding = np.array(data.new_embedding)
+        stored_embeddings = np.array(data.stored_embeddings)
 
         logger.info(
             f"Matching against {len(data.stored_embeddings)} stored embeddings")
 
-        # Find minimum distance among all stored embeddings
-        min_distance = float('inf')
+        # Vectorized distance calculation (much faster than loop)
+        if DISTANCE_METRIC == "cosine":
+            # Vectorized cosine distance
+            dot_products = np.dot(stored_embeddings, new_embedding)
+            norms_stored = np.linalg.norm(stored_embeddings, axis=1)
+            norm_new = np.linalg.norm(new_embedding)
 
-        for idx, stored_emb in enumerate(data.stored_embeddings):
-            stored_array = np.array(stored_emb)
-
-            # Calculate distance based on metric
-            if DISTANCE_METRIC == "cosine":
-                # Cosine similarity: 1 - (a·b)/(||a||*||b||)
-                # Lower is better (0 = identical, 2 = opposite)
-                dot_product = np.dot(new_embedding, stored_array)
-                norm_new = np.linalg.norm(new_embedding)
-                norm_stored = np.linalg.norm(stored_array)
-                if norm_new > 0 and norm_stored > 0:
-                    cosine_similarity = dot_product / (norm_new * norm_stored)
-                    distance = 1 - cosine_similarity
-                else:
-                    distance = 2.0  # Max distance if normalization fails
+            if norm_new > 0 and np.all(norms_stored > 0):
+                cosine_similarities = dot_products / (norms_stored * norm_new)
+                distances = 1 - cosine_similarities
             else:
-                # Euclidean distance
-                distance = np.linalg.norm(new_embedding - stored_array)
+                distances = np.full(len(stored_embeddings), 2.0)
+        else:
+            # Vectorized Euclidean distance
+            distances = np.linalg.norm(
+                stored_embeddings - new_embedding, axis=1)
 
-            logger.debug(f"Distance to embedding {idx}: {distance}")
-
-            if distance < min_distance:
-                min_distance = distance
+        # Find minimum distance
+        min_distance = float(np.min(distances))
+        min_idx = int(np.argmin(distances))
 
         # Check if minimum distance is below threshold
         is_match = min_distance < MATCH_THRESHOLD
 
         logger.info(
-            f"Match result: {is_match}, Distance: {min_distance:.4f}, Threshold: {MATCH_THRESHOLD}")
+            f"Match result: {is_match}, Min distance: {min_distance:.4f} "
+            f"(embedding {min_idx}), Threshold: {MATCH_THRESHOLD}"
+        )
 
         return MatchResponse(
             match=is_match,
-            distance=float(min_distance)
+            distance=min_distance
         )
 
     except Exception as e:
@@ -285,12 +391,55 @@ async def match_faces(data: MatchRequest):
         )
 
 
+# ================== DEBUG ENDPOINT ==================
+
+@app.post("/debug-image")
+async def debug_image(file: UploadFile = File(...)):
+    """
+    Debug endpoint to check image format and preprocessing
+    """
+    try:
+        content = await file.read()
+        
+        # Try OpenCV decoding
+        nparr = np.frombuffer(content, np.uint8)
+        img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        # Try PIL decoding
+        from PIL import Image
+        pil_img = Image.open(BytesIO(content))
+        
+        # Try preprocessing
+        preprocessed = None
+        try:
+            preprocessed = preprocess_image(content)
+        except Exception as preprocess_error:
+            preprocessed = f"Preprocessing failed: {str(preprocess_error)}"
+        
+        return {
+            "filename": file.filename,
+            "content_size": len(content),
+            "opencv_decoded": img_cv is not None,
+            "opencv_shape": img_cv.shape if img_cv is not None else None,
+            "opencv_dtype": str(img_cv.dtype) if img_cv is not None else None,
+            "pil_mode": pil_img.mode,
+            "pil_size": pil_img.size,
+            "pil_format": pil_img.format,
+            "preprocessed_info": str(preprocessed.shape) if isinstance(preprocessed, np.ndarray) else preprocessed
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ================== RUN SERVER ==================
 
 if __name__ == "__main__":
-    logger.info(f"Starting Face Authentication AI Service on port 8000")
-    logger.info(f"Using model: {FACE_MODEL}")
+    logger.info(
+        f"Starting Optimized Face Authentication AI Service on port 8090")
+    logger.info(f"Using optimized face_recognition library (dlib-based)")
     logger.info(f"Match threshold: {MATCH_THRESHOLD}")
+    logger.info(f"Detector backend: {DETECTOR_BACKEND}")
+    logger.info(f"Distance metric: {DISTANCE_METRIC}")
 
     uvicorn.run(
         app,

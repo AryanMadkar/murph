@@ -1,19 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ArrowLeft, Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Loader2, History } from "lucide-react";
+import {
+  ArrowLeft,
+  Wallet as WalletIcon,
+  Plus,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Loader2,
+  History,
+} from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
-
-const loadRazorpayScript = () => {
-  return new Promise((resolve) => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
 
 export default function Wallet() {
   const [balance, setBalance] = useState(0);
@@ -33,28 +31,68 @@ export default function Wallet() {
     }
     const parsedUser = JSON.parse(userData);
     setUser(parsedUser);
-    fetchWalletData(parsedUser.id);
+
+    // Initial fetch
+    fetchWalletData();
+
+    // Check for pending payment (after redirect back)
+    const intentId = localStorage.getItem("pendingPaymentIntent");
+    if (intentId) {
+      verifyPendingPayment(intentId);
+    }
   }, [navigate]);
 
-  const fetchWalletData = async (userId) => {
+  const verifyPendingPayment = async (intentId) => {
+    setMessage("🔄 Verifying your payment...");
     try {
-      const res = await axios.get(`${API_URL}/api/payment/balance/${userId}`);
-      setBalance(res.data.balance);
-      setTransactions(res.data.transactions);
+      const res = await axios.post(
+        `${API_URL}/api/wallet/verify-topup`,
+        { intentId },
+        { headers: getAuthHeaders() },
+      );
 
-      // Update local storage balance
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      userData.walletBalance = res.data.balance;
-      localStorage.setItem("user", JSON.stringify(userData));
+      if (res.data.success) {
+        setMessage(`✅ $${res.data.amountCredited} added to your wallet!`);
+        localStorage.removeItem("pendingPaymentIntent");
+        fetchWalletData();
+        setTimeout(() => setMessage(""), 5000);
+      }
+    } catch (err) {
+      console.error("Verification error:", err);
+      // Keep intent for retry or let user know
+    }
+  };
+
+  // Get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return { Authorization: `Bearer ${token}` };
+  };
+
+  const fetchWalletData = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/wallet/balance`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.data.success) {
+        setBalance(res.data.balance);
+      }
+
+      const txRes = await axios.get(`${API_URL}/api/wallet/transactions`, {
+        headers: getAuthHeaders(),
+      });
+      if (txRes.data.success) {
+        setTransactions(txRes.data.transactions);
+      }
     } catch (err) {
       console.error("Error fetching wallet:", err);
     }
   };
 
   const handleAddMoney = async () => {
-    const amountNum = Number(amount);
-    if (!amount || amountNum < 1) {
-      setMessage("Minimum amount is ₹1");
+    const amountNum = parseFloat(amount);
+    if (!amountNum || amountNum < 1) {
+      setMessage("❌ Minimum amount is $1");
       return;
     }
 
@@ -62,57 +100,23 @@ export default function Wallet() {
     setMessage("Initializing payment...");
 
     try {
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        setMessage("❌ Failed to load payment gateway.");
-        setLoading(false);
-        return;
+      const res = await axios.post(
+        `${API_URL}/api/wallet/create-topup`,
+        { amount: amountNum },
+        { headers: getAuthHeaders() },
+      );
+
+      if (res.data.success && res.data.paymentUrl) {
+        setMessage("✅ Redirecting to payment gateway...");
+        // Store intent ID for verification after redirect
+        localStorage.setItem("pendingPaymentIntent", res.data.intentId);
+        window.location.href = res.data.paymentUrl;
+      } else {
+        setMessage("❌ Failed to initiate payment");
       }
-
-      const res = await axios.post(`${API_URL}/api/payment/create-intent`, {
-        userId: user.id,
-        amount: amountNum,
-      });
-
-      const options = {
-        key: res.data.keyId,
-        amount: res.data.amount,
-        currency: res.data.currency,
-        name: "Murph Wallet",
-        description: "Add funds to wallet",
-        order_id: res.data.orderId,
-        handler: async function (response) {
-          try {
-            setMessage("Verifying payment...");
-            const verifyRes = await axios.post(
-              `${API_URL}/api/payment/verify`,
-              {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              },
-            );
-
-            if (verifyRes.data.success) {
-              setMessage("✅ Added successfully!");
-              setAmount("");
-              fetchWalletData(user.id);
-              setTimeout(() => setMessage(""), 3000);
-            }
-          } catch (err) {
-            setMessage("❌ Verification failed");
-          } finally {
-            setLoading(false);
-          }
-        },
-        prefill: { email: user.email },
-        theme: { color: "#000000" },
-      };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
     } catch (err) {
       setMessage("❌ Error: " + (err.response?.data?.error || err.message));
+    } finally {
       setLoading(false);
     }
   };
@@ -125,7 +129,6 @@ export default function Wallet() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] font-['Source_Sans_Pro'] pt-28 pb-12 px-10">
       <div className="max-w-2xl mx-auto">
-
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
@@ -139,21 +142,22 @@ export default function Wallet() {
 
         {/* Main Card */}
         <div className="bg-white rounded-3xl shadow-xl shadow-gray-100 overflow-hidden border border-gray-100">
-
           {/* Balance Section */}
           <div className="bg-black text-white p-10 flex flex-col items-center justify-center text-center relative overflow-hidden">
             <div className="absolute top-0 right-0 p-10 opacity-10 transform translate-x-10 -translate-y-10">
               <WalletIcon className="h-48 w-48" />
             </div>
 
-            <p className="text-gray-400 font-medium uppercase tracking-wider text-sm mb-2">Total Balance</p>
+            <p className="text-gray-400 font-medium uppercase tracking-wider text-sm mb-2">
+              Total Balance
+            </p>
             <h1 className="text-6xl font-bold tracking-tight mb-8">
-              ₹{balance.toLocaleString('en-IN')}
+              ${balance.toLocaleString("en-US")}
             </h1>
 
             <div className="w-full max-w-sm flex gap-3 relative z-10">
               <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-xl p-1 flex items-center border border-white/10">
-                <span className="pl-4 text-gray-400 text-lg">₹</span>
+                <span className="pl-4 text-gray-400 text-lg">$</span>
                 <input
                   type="number"
                   value={amount}
@@ -167,13 +171,19 @@ export default function Wallet() {
                 disabled={loading}
                 className="bg-white text-black px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Plus className="h-5 w-5" />
+                )}
                 Add Funds
               </button>
             </div>
 
             {message && (
-              <p className={`mt-4 text-sm font-medium ${message.includes("❌") ? "text-red-400" : "text-green-400"}`}>
+              <p
+                className={`mt-4 text-sm font-medium ${message.includes("❌") ? "text-red-400" : "text-green-400"}`}
+              >
                 {message}
               </p>
             )}
@@ -193,25 +203,45 @@ export default function Wallet() {
                 </div>
               ) : (
                 transactions.map((tx) => (
-                  <div key={tx._id} className="group flex justify-between items-center p-4 hover:bg-gray-50 rounded-2xl transition-all border border-transparent hover:border-gray-100">
+                  <div
+                    key={tx._id}
+                    className="group flex justify-between items-center p-4 hover:bg-gray-50 rounded-2xl transition-all border border-transparent hover:border-gray-100"
+                  >
                     <div className="flex items-center gap-4">
-                      <div className={`h-12 w-12 rounded-full flex items-center justify-center ${tx.type === 'CREDIT' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                        {tx.type === 'CREDIT' ? <ArrowDownLeft className="h-6 w-6" /> : <ArrowUpRight className="h-6 w-6" />}
+                      <div
+                        className={`h-12 w-12 rounded-full flex items-center justify-center ${tx.type === "CREDIT" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}
+                      >
+                        {tx.type === "CREDIT" ? (
+                          <ArrowDownLeft className="h-6 w-6" />
+                        ) : (
+                          <ArrowUpRight className="h-6 w-6" />
+                        )}
                       </div>
                       <div>
                         <p className="font-bold text-gray-900 capitalize">
-                          {tx.type === "CREDIT" ? "Funds Added" : "Meeting Payment"}
+                          {tx.type === "CREDIT"
+                            ? "Funds Added"
+                            : "Meeting Payment"}
                         </p>
                         <p className="text-xs text-gray-500 font-medium">
-                          {new Date(tx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(tx.createdAt).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={`font-bold text-lg ${tx.type === 'CREDIT' ? 'text-green-600' : 'text-gray-900'}`}>
-                        {tx.type === 'CREDIT' ? '+' : '-'}₹{tx.amount}
+                      <p
+                        className={`font-bold text-lg ${tx.type === "CREDIT" ? "text-green-600" : "text-gray-900"}`}
+                      >
+                        {tx.type === "CREDIT" ? "+" : "-"}${tx.amount / 100}
                       </p>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tx.status === 'SUCCESS' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tx.status === "SUCCESS" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}
+                      >
                         {tx.status}
                       </span>
                     </div>

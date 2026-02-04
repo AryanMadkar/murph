@@ -1,147 +1,87 @@
 const User = require("../models/user.models");
-const axios = require("axios");
-const FormData = require("form-data");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
-const AI_AUTH_URL = process.env.AI_AUTH_URL;
-const JWT_SECRET =
-  process.env.JWT_SECRET || "murph_secret_key_change_in_production";
-
-const generateToken = (id) => {
-  return jwt.sign({ id }, JWT_SECRET, { expiresIn: "7d" });
+const signToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: "1d",
+  });
 };
 
 const register = async (req, res) => {
   try {
-    const { email, role } = req.body;
+    const { name, email, role, password } = req.body;
 
-    if (!email || !role || !req.file) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing required fields" });
+    if (!name || !email || !role || !password) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    const exists = await User.findOne({ email });
-    if (exists) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User already exists" });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
     }
 
-    // Encode face using AI service
-    const formData = new FormData();
-    formData.append("file", req.file.buffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype,
-    });
-
-    console.log(`Encoding face for registration: ${email}`);
-    const aiRes = await axios.post(`${AI_AUTH_URL}/encode`, formData, {
-      headers: formData.getHeaders(),
-    });
-
-    if (!aiRes.data.success)
-      return res.status(400).json({ message: "Face not detected" });
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const newUser = await User.create({
+      name,
       email,
       role,
-      embedding: aiRes.data.embedding,
-      embedding: aiRes.data.embedding,
+      password: hashedPassword,
     });
 
-    // ✅ Generate JWT token on registration
-    const token = generateToken(newUser._id);
+    const token = signToken(newUser._id);
 
     res.status(201).json({
-      success: true,
-      message: "Registration successful",
+      status: "success",
       token,
-      user: {
-        email: newUser.email,
-        role: newUser.role,
-        id: newUser._id,
-        walletBalance: (newUser.walletBalance || 0) / 100,
+      data: {
+        user: newUser,
       },
     });
-  } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res
+      .status(500)
+      .json({ message: "Registration failed", error: error.message });
   }
 };
 
 const login = async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email || !req.file) {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
       return res
         .status(400)
-        .json({ success: false, message: "Email and image are required" });
+        .json({ message: "Please provide email and password" });
     }
 
+    // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+      return res.status(401).json({ message: "Incorrect email or password" });
     }
 
-    // Encode new face
-    const formData = new FormData();
-    formData.append("file", req.file.buffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype,
+    // Check password
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ message: "Incorrect email or password" });
+    }
+
+    const token = signToken(user._id);
+
+    res.status(200).json({
+      status: "success",
+      token,
+      data: {
+        user,
+      },
     });
-
-    // 2. Encode the uploaded face
-    console.log("Encoding face for login...");
-    const encodeResponse = await axios.post(`${AI_SERVICE_URL}/encode`, formData, {
-      headers: formData.getHeaders(),
-      timeout: 10000,
-    });
-
-    if (!encodeRes.data.success) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Face not detected in image" });
-    }
-
-    // 3. Match faces using Python AI service
-    const matchPayload = {
-      new_embedding: encodeResponse.data.embedding,
-      stored_embeddings: [user.embedding],
-    };
-
-    const matchResponse = await axios.post(
-      `${AI_SERVICE_URL}/match`,
-      matchPayload,
-      {
-        headers: { "Content-Type": "application/json" },
-        timeout: 10000,
-      }
-    );
-
-    if (matchRes.data.match) {
-      const token = generateToken(user._id);
-      res.json({
-        success: true,
-        message: "Login successful",
-        token,
-        user: {
-          id: user._id,
-          email: user.email,
-          role: user.role,
-          walletBalance: (user.walletBalance || 0) / 100,
-        },
-      });
-    } else {
-      res
-        .status(401)
-        .json({ success: false, message: "Face verification failed" });
-    }
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ message: "Login failed", error: error.message });
   }
 };
 

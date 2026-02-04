@@ -14,6 +14,29 @@ export default function TeacherDashboard() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
+  // Wallet state
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  // Get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return { Authorization: `Bearer ${token}` };
+  };
+
+  // Fetch wallet balance
+  const fetchBalance = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/wallet/balance`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.data.success) {
+        setWalletBalance(res.data.balance || 0);
+      }
+    } catch (err) {
+      console.error("Failed to fetch balance:", err);
+    }
+  };
+
   useEffect(() => {
     const userData = localStorage.getItem("user");
     let parsedUser = null;
@@ -31,8 +54,9 @@ export default function TeacherDashboard() {
     }
     setUser(parsedUser);
 
+    // Fetch initial data
+    fetchBalance();
     socket.emit("register-user", parsedUser.id);
-
     fetchRequests(parsedUser.id);
 
     socket.on("new-meeting-request", ({ studentEmail }) => {
@@ -103,10 +127,27 @@ export default function TeacherDashboard() {
         {/* Header */}
         <div className="flex justify-between items-end mb-12">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Teacher Dashboard</h1>
-            {user && <p className="text-gray-500 mt-2 text-lg">Welcome back, {user.email}</p>}
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+              Teacher Dashboard
+            </h1>
+            {user && (
+              <p className="text-gray-500 mt-2 text-lg">
+                Welcome back, {user.email}
+              </p>
+            )}
           </div>
-          <div>
+          <div className="flex items-center gap-6">
+            {/* Wallet Balance Card */}
+            <div
+              onClick={() => navigate("/wallet")}
+              className="bg-black text-white px-6 py-4 rounded-2xl shadow-xl cursor-pointer hover:bg-gray-800 transition-all flex flex-col items-center min-w-[140px]"
+            >
+              <p className="text-[10px] uppercase tracking-widest opacity-60 font-bold mb-1">
+                My Earnings
+              </p>
+              <p className="text-2xl font-black">${walletBalance.toFixed(2)}</p>
+            </div>
+
             <button
               onClick={logout}
               className="text-gray-500 hover:text-gray-900 font-medium transition-colors cursor-pointer"
@@ -154,8 +195,12 @@ export default function TeacherDashboard() {
                       🎓
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 font-medium mb-0.5">Student</p>
-                      <p className="text-lg font-bold text-gray-900">{req.studentId?.email || "Unknown"}</p>
+                      <p className="text-sm text-gray-500 font-medium mb-0.5">
+                        Student
+                      </p>
+                      <p className="text-lg font-bold text-gray-900">
+                        {req.studentId?.email || "Unknown"}
+                      </p>
                     </div>
                   </div>
 
