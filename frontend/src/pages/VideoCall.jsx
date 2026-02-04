@@ -58,7 +58,7 @@ export default function VideoCall() {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     setCurrentUser(user);
 
-    if (!user.id) {
+    if (!user._id) {
       navigate("/login");
       return;
     }
@@ -82,9 +82,9 @@ export default function VideoCall() {
           localVideoRef.current.srcObject = stream;
         }
 
-        setupSocketListeners(user.id);
+        setupSocketListeners(user._id);
 
-        socketRef.current.emit("join-room", roomId, user.id);
+        socketRef.current.emit("join-room", roomId, user._id);
         setCallStatus("Waiting for other user...");
       } catch (err) {
         console.error("Error accessing media:", err);
@@ -329,7 +329,7 @@ export default function VideoCall() {
     const messageData = {
       roomId,
       message: inputMessage,
-      senderId: currentUser.id,
+      senderId: currentUser._id,
       senderName: currentUser.email?.split("@")[0] || "User",
       timestamp: new Date().toISOString(),
     };
@@ -483,11 +483,10 @@ export default function VideoCall() {
               className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}
             >
               <div
-                className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                  msg.isMe
-                    ? "bg-blue-600 text-white rounded-tr-none"
-                    : "bg-gray-800 text-gray-200 rounded-tl-none"
-                }`}
+                className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.isMe
+                  ? "bg-blue-600 text-white rounded-tr-none"
+                  : "bg-gray-800 text-gray-200 rounded-tl-none"
+                  }`}
               >
                 {msg.message}
               </div>

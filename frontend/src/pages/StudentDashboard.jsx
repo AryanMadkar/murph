@@ -31,20 +31,13 @@ const navItems = [
 const socket = io(API_URL);
 
 export default function StudentDashboard() {
-  const [teachers, setTeachers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("home");
-  const [chatInput, setChatInput] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const pollingRef = useRef(null);
 
-  // Sessions state
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
+
 
   // Wallet state
   const [walletBalance, setWalletBalance] = useState(0);
@@ -365,16 +358,7 @@ export default function StudentDashboard() {
     // Register with socket
     socket.emit("register-user", parsedUser._id);
 
-    axios
-      .get(`${API_URL}/api/meetings/teachers`)
-      .then((res) => {
-        setTeachers(res.data.teachers);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setMessage("Error loading teachers: " + err.message);
-        setLoading(false);
-      });
+
 
     socket.on("meeting-accepted", ({ roomId }) => {
       setMessage("🎉 Meeting accepted! Joining call...");
@@ -404,34 +388,9 @@ export default function StudentDashboard() {
     };
   }, [navigate]);
 
-  const requestMeeting = async (teacherId) => {
-    try {
-      const res = await axios.post(
-        `${API_URL}/api/meetings/request`,
-        { studentId: user._id, teacherId },
-        { headers: getAuthHeaders() },
-      );
 
-      if (res.data.success) {
-        setMessage("✅ Meeting request sent! Waiting for teacher...");
-        fetchBalance();
-        socket.emit("meeting-request", {
-          teacherId,
-          studentEmail: user.email,
-          meetingId: res.data.meeting._id,
-        });
-      }
-    } catch (err) {
-      setMessage("❌ " + (err.response?.data?.message || err.message));
-    }
-  };
 
-  const logout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("pendingPaymentIntent");
-    navigate("/login");
-  };
+
 
   // Simulate payment completion (DEV ONLY)
   const handleSimulateComplete = async () => {
@@ -535,7 +494,7 @@ export default function StudentDashboard() {
           </p>
         </div>
 
-        {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
+      {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
 
         {activeTab === "home" && (
           <div className="space-y-6">
@@ -788,21 +747,21 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Payment Processing Banner */}
-        {paymentStatus === "processing" && (
-          <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
-              <p className="font-medium text-yellow-700">{message}</p>
-            </div>
-            <button
-              onClick={handleSimulateComplete}
-              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
-            >
-              ⚡ Complete Now (Dev)
-            </button>
+      {/* Payment Processing Banner */}
+      {paymentStatus === "processing" && (
+        <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+            <p className="font-medium text-yellow-700">{message}</p>
           </div>
-        )}
+          <button
+            onClick={handleSimulateComplete}
+            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
+          >
+            ⚡ Complete Now (Dev)
+          </button>
+        </div>
+      )}
 
         {/* Success/Error Message */}
         {message && paymentStatus !== "processing" && (
@@ -829,11 +788,11 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Topup Modal */}
-        {showTopupModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
-              <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
+      {/* Topup Modal */}
+      {showTopupModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
+            <h3 className="text-xl font-bold mb-4">Add Funds to Wallet</h3>
 
               {/* Quick Amount Buttons */}
               <div className="grid grid-cols-4 gap-2 mb-4">
@@ -852,15 +811,15 @@ export default function StudentDashboard() {
                 ))}
               </div>
 
-              {/* Custom Amount Input */}
-              <input
-                type="number"
-                placeholder="Or enter custom amount"
-                value={topupAmount}
-                onChange={(e) => setTopupAmount(e.target.value)}
-                className="w-full p-3 border border-gray-200 rounded-lg mb-4 text-lg focus:outline-none focus:border-purple-500"
-                min="1"
-              />
+            {/* Custom Amount Input */}
+            <input
+              type="number"
+              placeholder="Or enter custom amount"
+              value={topupAmount}
+              onChange={(e) => setTopupAmount(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-lg mb-4 text-lg focus:outline-none focus:border-purple-500"
+              min="1"
+            />
 
               <div className="flex gap-3">
                 <button
@@ -883,13 +842,12 @@ export default function StudentDashboard() {
                 </button>
               </div>
 
-              <p className="text-xs text-gray-500 mt-3 text-center">
-                Powered by Finternet • Secure Payment
-              </p>
-            </div>
+            <p className="text-xs text-gray-500 mt-3 text-center">
+              Powered by Finternet • Secure Payment
+            </p>
           </div>
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+    </>
   );
 }

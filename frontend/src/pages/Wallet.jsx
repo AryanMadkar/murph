@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
-  ArrowLeft,
   Wallet as WalletIcon,
   Plus,
   ArrowUpRight,
@@ -19,28 +18,15 @@ export default function Wallet() {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [user, setUser] = useState(null);
+
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (!userData) {
-      navigate("/login");
-      return;
-    }
-    const parsedUser = JSON.parse(userData);
-    setUser(parsedUser);
 
-    // Initial fetch
-    fetchWalletData();
-
-    // Check for pending payment (after redirect back)
-    const intentId = localStorage.getItem("pendingPaymentIntent");
-    if (intentId) {
-      verifyPendingPayment(intentId);
-    }
-  }, [navigate]);
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return { Authorization: `Bearer ${token}` };
+  };
 
   const verifyPendingPayment = async (intentId) => {
     setMessage("🔄 Verifying your payment...");
@@ -61,12 +47,6 @@ export default function Wallet() {
       console.error("Verification error:", err);
       // Keep intent for retry or let user know
     }
-  };
-
-  // Get auth headers
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
-    return { Authorization: `Bearer ${token}` };
   };
 
   const fetchWalletData = async () => {
@@ -121,25 +101,33 @@ export default function Wallet() {
     }
   };
 
-  const handleBack = () => {
-    if (user?.role === "teacher") navigate("/teacher-dashboard");
-    else navigate("/student-dashboard");
-  };
+  useEffect(() => {
+    const userData = localStorage.getItem("user");
+    if (!userData) {
+      navigate("/login");
+      return;
+    }
+
+    // Initial fetch
+    fetchWalletData();
+
+    // Check for pending payment (after redirect back)
+    const intentId = localStorage.getItem("pendingPaymentIntent");
+    if (intentId) {
+      verifyPendingPayment(intentId);
+    }
+  }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] font-['Source_Sans_Pro'] pt-28 pb-12 px-10">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-gray-500 hover:text-black transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            <span>Back to Dashboard</span>
-          </button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Wallet & Transactions</h1>
+          <p className="text-gray-500">Manage your funds and view transaction history.</p>
         </div>
+      </div>
 
+      <div className="max-w-4xl mx-auto">
         {/* Main Card */}
         <div className="bg-white rounded-3xl shadow-xl shadow-gray-100 overflow-hidden border border-gray-100">
           {/* Balance Section */}
@@ -229,6 +217,7 @@ export default function Wallet() {
                             month: "short",
                             hour: "2-digit",
                             minute: "2-digit",
+                            section: "history",
                           })}
                         </p>
                       </div>

@@ -4,11 +4,12 @@ const {
   requestMeeting,
   getPendingMeetings,
   getStudentSessions,
+  getStudentSessionHistory,
   acceptMeeting,
   startMeeting,
   completeMeeting,
-  declineMeeting,
   cancelMeeting,
+  declineMeeting,
   getTeachers,
   getWalletBalance,
   addMoney,
@@ -21,8 +22,11 @@ router.get("/teachers", getTeachers);
 // Student requests a meeting (⭐ deducts from wallet)
 router.post("/request", requestMeeting);
 
-// Get student's sessions (pending, active, completed)
+// Get student's sessions (pending, active, completed - for dashboard)
 router.get("/student/:studentId", getStudentSessions);
+
+// Get student's complete session history (for My Sessions page)
+router.get("/student/:studentId/history", getStudentSessionHistory);
 
 // Teacher gets pending requests
 router.get("/pending/:teacherId", getPendingMeetings);
@@ -38,9 +42,6 @@ router.post("/complete", completeMeeting);
 
 // Teacher declines a meeting (⭐ refunds student)
 router.post("/decline/:meetingId", declineMeeting);
-
-// Complete a meeting (⭐ releases escrow to teacher)
-// router.post("/complete", completeMeeting);
 
 // Cancel a meeting (⭐ refunds student from escrow)
 router.post("/cancel", cancelMeeting);

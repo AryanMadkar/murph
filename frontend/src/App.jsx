@@ -10,6 +10,8 @@ import VideoCall from "./pages/VideoCall";
 import SessionReview from "./pages/SessionReview";
 import Wallet from "./pages/Wallet";
 import Explore from "./pages/Explore";
+import MySessions from "./pages/MySessions";
+import DashboardLayout from "./components/DashboardLayout";
 
 function App() {
   return (
@@ -21,12 +23,21 @@ function App() {
         {/* Legacy System / Dashboard Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/student-dashboard" element={<StudentDashboard />} />
+        {/* Student Dashboard & Pages (with persistent sidebar) */}
+        <Route element={<DashboardLayout />}>
+          <Route path="/student-dashboard" element={<StudentDashboard />} />
+          <Route path="/explore" element={<Explore />} />
+          <Route path="/my-sessions" element={<MySessions />} />
+          <Route path="/wallet" element={<Wallet />} />
+        </Route>
+
         <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+
+        {/* Video Call Route (Full Screen) */}
         <Route path="/video-call/:roomId" element={<VideoCall />} />
+
+        {/* Post-Session Review */}
         <Route path="/session-review/:sessionId" element={<SessionReview />} />
-        <Route path="/wallet" element={<Wallet />} />
-        <Route path="/explore" element={<Explore />} />
       </Routes>
     </BrowserRouter>
   );
