@@ -12,7 +12,8 @@ const {
   getTransactions,
   webhookHandler,
   createWithdrawal,
-  checkFinternetStatus
+  checkFinternetStatus,
+  simulatePaymentComplete
 } = require("../controller/wallet.controllers");
 
 // ⭐ Public - Check API status
@@ -37,5 +38,8 @@ router.post("/withdraw", authMiddleware, createWithdrawal);
 
 // ⭐ Webhook (No auth - Finternet calls this)
 router.post("/webhook", webhookHandler);
+
+// ⭐ DEV ONLY - Simulate payment completion
+router.post("/simulate-complete", authMiddleware, simulatePaymentComplete);
 
 module.exports = router;

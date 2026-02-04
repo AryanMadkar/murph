@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
-import { Search, Loader2, User, Video, LogOut } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const socket = io(API_URL);
@@ -14,12 +13,14 @@ export default function StudentDashboard() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const pollingRef = useRef(null);
 
   // Wallet state
   const [walletBalance, setWalletBalance] = useState(0);
   const [topupAmount, setTopupAmount] = useState("");
   const [walletLoading, setWalletLoading] = useState(false);
   const [showTopupModal, setShowTopupModal] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null); // null, 'processing', 'success', 'failed'
 
   // Get auth token
   const getAuthHeaders = () => {
@@ -58,10 +59,16 @@ export default function StudentDashboard() {
       );
 
       if (res.data.success && res.data.paymentUrl) {
-        // ⭐ Store intentId for verification after redirect
+        // ⭐ Store intentId for verification
         localStorage.setItem("pendingPaymentIntent", res.data.intentId);
-        // ⭐ Redirect to Finternet payment page
-        window.location.href = res.data.paymentUrl;
+        // ⭐ Open Finternet payment in new tab (user stays on dashboard)
+        window.open(res.data.paymentUrl, "_blank");
+        setMessage("💳 Complete payment in the new tab. Your balance will update automatically!");
+        setPaymentStatus("processing");
+        setShowTopupModal(false);
+        setTopupAmount("");
+        // ⭐ Start fast polling immediately (every 1.5 seconds)
+        startFastPolling(res.data.intentId);
       } else if (res.data.success && res.data.intentId) {
         // If no paymentUrl, store intent and show message
         localStorage.setItem("pendingPaymentIntent", res.data.intentId);
@@ -79,12 +86,66 @@ export default function StudentDashboard() {
     }
   };
 
-  // ⭐ STEP 5 - Verify payment after redirect back
-  const verifyPendingPayment = async () => {
+  // ⭐ Fast polling for instant updates (every 1.5 seconds)
+  const startFastPolling = (intentId) => {
+    // Clear any existing polling
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+    }
+    
+    let attempts = 0;
+    const maxAttempts = 120; // 90 seconds max (120 * 750ms)
+    
+    pollingRef.current = setInterval(async () => {
+      attempts++;
+      
+      try {
+        const res = await axios.post(
+          `${API_URL}/api/wallet/verify-topup`,
+          { intentId },
+          { headers: getAuthHeaders() }
+        );
+
+        if (res.data.success && res.data.amountCredited) {
+          // ✅ Payment completed!
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setPaymentStatus("success");
+          setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
+          setWalletBalance(res.data.newBalance);
+          localStorage.removeItem("pendingPaymentIntent");
+          return;
+        }
+        
+        // Update status message
+        if (attempts % 8 === 0) { // Update message every 6 seconds
+          setMessage(`💳 Waiting for payment... (${Math.floor(attempts * 0.75)}s)`);
+        }
+        
+        if (attempts >= maxAttempts) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setPaymentStatus(null);
+          setMessage("⏰ Still waiting for payment. Click 'Add Funds' to check status.");
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }, 750); // Poll every 750ms for instant updates
+  };
+
+  // ⭐ STEP 5 - Verify payment after redirect back (with polling for PROCESSING status)
+  const verifyPendingPayment = async (retryCount = 0) => {
     const intentId = localStorage.getItem("pendingPaymentIntent");
     if (!intentId) return;
 
-    setMessage("🔄 Verifying your payment...");
+    const maxRetries = 30; // Poll for up to 60 seconds (30 * 2s)
+    
+    if (retryCount === 0) {
+      setPaymentStatus("processing");
+      setMessage("🔄 Verifying your payment...");
+    }
+
     try {
       const res = await axios.post(
         `${API_URL}/api/wallet/verify-topup`,
@@ -92,23 +153,65 @@ export default function StudentDashboard() {
         { headers: getAuthHeaders() }
       );
 
-      if (res.data.success) {
-        setMessage(`✅ $${res.data.amountCredited} added to your wallet!`);
+      if (res.data.success && res.data.amountCredited) {
+        // ✅ Payment completed!
+        setPaymentStatus("success");
+        setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
         setWalletBalance(res.data.newBalance);
         localStorage.removeItem("pendingPaymentIntent");
-        fetchBalance();
-      } else if (res.data.status === "PENDING") {
-        setMessage("⏳ Payment still processing...");
+        
+        // Clear polling
+        if (pollingRef.current) {
+          clearTimeout(pollingRef.current);
+          pollingRef.current = null;
+        }
+        return;
+      } 
+      
+      // Payment still processing - continue polling
+      if (res.data.status === "PROCESSING" || res.data.status === "INITIATED") {
+        if (retryCount < maxRetries) {
+          setMessage(`⏳ Payment processing... (${retryCount + 1}/${maxRetries})`);
+          pollingRef.current = setTimeout(() => {
+            verifyPendingPayment(retryCount + 1);
+          }, 2000); // Poll every 2 seconds
+        } else {
+          setPaymentStatus("failed");
+          setMessage("⏰ Payment verification timed out. Please check your transaction history.");
+        }
+        return;
       }
-    } catch (err) {
-      if (err.response?.data?.error === "Payment failed") {
-        setMessage("❌ Payment was not completed.");
+
+      // Payment failed or unknown status
+      if (res.data.status === "FAILED") {
+        setPaymentStatus("failed");
+        setMessage("❌ Payment failed. Please try again.");
         localStorage.removeItem("pendingPaymentIntent");
+      }
+
+    } catch (err) {
+      console.error("Verify error:", err);
+      
+      if (retryCount < 5) {
+        // Retry on network errors
+        pollingRef.current = setTimeout(() => {
+          verifyPendingPayment(retryCount + 1);
+        }, 2000);
       } else {
-        setMessage("⏳ Payment verification pending...");
+        setPaymentStatus("failed");
+        setMessage("❌ " + (err.response?.data?.error || "Verification failed"));
       }
     }
   };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -152,8 +255,26 @@ export default function StudentDashboard() {
       setTimeout(() => navigate(`/video-call/${roomId}`), 1500);
     });
 
+    // ⭐ Real-time wallet update listener (premium UX!)
+    socket.on("wallet-updated", (data) => {
+      console.log("💰 Real-time wallet update received:", data);
+      setWalletBalance(data.newBalance);
+      setPaymentStatus("success");
+      setMessage(`✅ $${data.amount.toFixed(2)} added to your wallet!`);
+      setShowTopupModal(false);
+      setTopupAmount("");
+      // Clear pending payment
+      localStorage.removeItem("pendingPaymentIntent");
+      // Stop any polling
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    });
+
     return () => {
       socket.off("meeting-accepted");
+      socket.off("wallet-updated");
     };
   }, [navigate]);
 
@@ -186,6 +307,32 @@ export default function StudentDashboard() {
     navigate("/login");
   };
 
+  // Simulate payment completion (DEV ONLY)
+  const handleSimulateComplete = async () => {
+    const intentId = localStorage.getItem("pendingPaymentIntent");
+    if (!intentId) return;
+
+    try {
+      const res = await axios.post(
+        `${API_URL}/api/wallet/simulate-complete`,
+        { intentId },
+        { headers: getAuthHeaders() }
+      );
+
+      if (res.data.success) {
+        setPaymentStatus("success");
+        setMessage(`✅ $${res.data.amountCredited.toFixed(2)} added to your wallet!`);
+        setWalletBalance(res.data.newBalance);
+        localStorage.removeItem("pendingPaymentIntent");
+      }
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Check if there's a pending payment
+  const hasPendingPayment = localStorage.getItem("pendingPaymentIntent");
+
   return (
     <div className="p-10 font-sans min-h-screen bg-gray-50">
       <div className="flex justify-between items-center mb-6">
@@ -216,9 +363,38 @@ export default function StudentDashboard() {
 
       {user && <p className="text-gray-600 mb-2">Welcome, {user.email}</p>}
 
-      {message && (
-        <div className="p-4 mb-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="font-medium text-blue-700">{message}</p>
+      {/* Payment Processing Banner */}
+      {paymentStatus === "processing" && (
+        <div className="p-4 mb-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+            <p className="font-medium text-yellow-700">{message}</p>
+          </div>
+          <button
+            onClick={handleSimulateComplete}
+            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium"
+          >
+            ⚡ Complete Now (Dev)
+          </button>
+        </div>
+      )}
+
+      {/* Success/Error Message */}
+      {message && paymentStatus !== "processing" && (
+        <div className={`p-4 mb-4 rounded-lg ${
+          paymentStatus === "success" 
+            ? "bg-green-50 border border-green-200" 
+            : paymentStatus === "failed"
+            ? "bg-red-50 border border-red-200"
+            : "bg-blue-50 border border-blue-200"
+        }`}>
+          <p className={`font-medium ${
+            paymentStatus === "success" 
+              ? "text-green-700" 
+              : paymentStatus === "failed"
+              ? "text-red-700"
+              : "text-blue-700"
+          }`}>{message}</p>
         </div>
       )}
 

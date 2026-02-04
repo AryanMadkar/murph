@@ -3,12 +3,13 @@ const axios = require("axios");
 const FormData = require("form-data");
 const jwt = require("jsonwebtoken");
 
-const AI_AUTH_URL = process.env.AI_AUTH_URL;
+const AI_AUTH_URL = process.env.AI_AUTH_URL || "http://localhost:8000";
+const AI_SERVICE_URL = process.env.AI_AUTH_URL || "http://localhost:8000";
 const JWT_SECRET =
-  process.env.JWT_SECRET || "murph_secret_key_change_in_production";
+  process.env.JWT_SECRET || "murph_secret_key";
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, JWT_SECRET, { expiresIn: "7d" });
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId, userId: userId }, JWT_SECRET, { expiresIn: "7d" });
 };
 
 const register = async (req, res) => {
@@ -100,7 +101,7 @@ const login = async (req, res) => {
       timeout: 10000,
     });
 
-    if (!encodeRes.data.success) {
+    if (!encodeResponse.data.success) {
       return res
         .status(400)
         .json({ success: false, message: "Face not detected in image" });
@@ -121,7 +122,7 @@ const login = async (req, res) => {
       }
     );
 
-    if (matchRes.data.match) {
+    if (matchResponse.data.match) {
       const token = generateToken(user._id);
       res.json({
         success: true,
