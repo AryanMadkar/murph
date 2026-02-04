@@ -17,22 +17,6 @@ const requestMeeting = async (req, res) => {
       });
     }
 
-    // Check student's wallet balance
-    const student = await User.findById(studentId);
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
-    }
-
-    if (student.walletBalance < SESSION_PRICE) {
-      return res.status(400).json({
-        success: false,
-        message: `Insufficient balance. You need ₹${SESSION_PRICE} for a session. Current balance: ₹${student.walletBalance}`,
-      });
-    }
-
     // Check for existing pending request
     const existingRequest = await Meeting.findOne({
       studentId,
@@ -47,25 +31,20 @@ const requestMeeting = async (req, res) => {
       });
     }
 
-    // Deduct amount from student's wallet (held until session completes)
-    student.walletBalance -= SESSION_PRICE;
-    await student.save();
-
     const newMeeting = new Meeting({
       studentId,
       teacherId,
       status: "pending",
-      amount: SESSION_PRICE,
-      paymentStatus: "held", // Money is held, not transferred yet
+      amount: 0, // Free session
+      paymentStatus: "free",
     });
 
     await newMeeting.save();
 
     res.status(201).json({
       success: true,
-      message: `Meeting request sent. ₹${SESSION_PRICE} deducted from your wallet.`,
+      message: `Meeting request sent.`,
       meeting: newMeeting,
-      newBalance: student.walletBalance,
     });
   } catch (error) {
     console.error("Request meeting error:", error);
@@ -140,7 +119,7 @@ const acceptMeeting = async (req, res) => {
   }
 };
 
-// Complete meeting and transfer payment to teacher
+// Complete meeting (No payment transfer)
 const completeMeeting = async (req, res) => {
   try {
     const { meetingId, roomId } = req.body;
@@ -166,36 +145,15 @@ const completeMeeting = async (req, res) => {
       });
     }
 
-    // Transfer held amount to teacher
-    if (meeting.paymentStatus === "held") {
-      const teacher = await User.findById(meeting.teacherId);
-      if (teacher) {
-        teacher.walletBalance = (teacher.walletBalance || 0) + meeting.amount;
-        await teacher.save();
-      }
+    meeting.status = "completed";
+    meeting.completedAt = new Date();
+    await meeting.save();
 
-      meeting.paymentStatus = "transferred";
-      meeting.status = "completed";
-      meeting.completedAt = new Date();
-      await meeting.save();
-
-      res.json({
-        success: true,
-        message: `Session completed. ₹${meeting.amount} transferred to teacher.`,
-        meeting,
-      });
-    } else {
-      // Just mark completed if payment wasn't held (legacy or error)
-      meeting.status = "completed";
-      meeting.completedAt = new Date();
-      await meeting.save();
-
-      res.json({
-        success: true,
-        message: "Session completed.",
-        meeting,
-      });
-    }
+    res.json({
+      success: true,
+      message: "Session completed.",
+      meeting,
+    });
   } catch (error) {
     console.error("Complete meeting error:", error);
     res.status(500).json({

@@ -30,8 +30,20 @@ export default function StudentDashboard() {
     }
     setUser(parsedUser);
 
-    socket.emit("register-user", parsedUser.id);
+    // Register on mount and on reconnection
+    const registerSocket = () => {
+      if (socket.connected) {
+        socket.emit("register-user", parsedUser.id);
+      }
+    };
 
+    // Register immediately if already connected
+    registerSocket();
+
+    // Listen for connection (in case of server restart)
+    socket.on("connect", registerSocket);
+
+    // Fetch teachers
     axios
       .get(`${API_URL}/api/meetings/teachers`)
       .then((res) => {
@@ -50,6 +62,7 @@ export default function StudentDashboard() {
 
     return () => {
       socket.off("meeting-accepted");
+      socket.off("connect", registerSocket);
     };
   }, [navigate]);
 
@@ -83,12 +96,7 @@ export default function StudentDashboard() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
         <div className="flex gap-4">
-          <button
-            onClick={() => navigate("/wallet")}
-            className="px-5 py-2 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-          >
-            💰 Wallet: ₹{user?.walletBalance || 0}
-          </button>
+          {/* Wallet Removed */}
           <button
             onClick={logout}
             className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"

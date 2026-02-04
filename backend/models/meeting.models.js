@@ -27,8 +27,8 @@ const meetingSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["held", "transferred", "refunded"],
-      default: "held",
+      enum: ["held", "transferred", "refunded", "free"],
+      default: "free",
     },
     completedAt: {
       type: Date,

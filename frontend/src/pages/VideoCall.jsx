@@ -201,21 +201,17 @@ export default function VideoCall() {
   const endCall = async () => {
     // If teacher, complete the session to get paid
     // If student, just leave (or can also trigger complete if they want)
-    if (currentUser?.role === "teacher") {
-      try {
-        const confirmEnd = window.confirm("End session and claim payment?");
-        if (!confirmEnd) return;
+    // Simplified End Call - No Payment Logic
+    const confirmEnd = window.confirm(
+      "Are you sure you want to end the session?",
+    );
+    if (!confirmEnd) return;
 
-        addLog("Completing session...");
-        await axios.post(`${API_URL}/api/meetings/complete`, { roomId });
-        alert("Session completed! Payment transferred to your wallet.");
-      } catch (err) {
-        console.error("Error completing session:", err);
-        alert(
-          "Error ending session: " +
-            (err.response?.data?.message || err.message),
-        );
-      }
+    try {
+      await axios.post(`${API_URL}/api/meetings/complete`, { roomId });
+      console.log("Session marked as completed");
+    } catch (err) {
+      console.error("Error marking session completed:", err);
     }
     navigate(-1);
   };
@@ -271,7 +267,7 @@ export default function VideoCall() {
             onClick={endCall}
             className="bg-red-600 px-8 py-3 rounded-full hover:bg-red-700 font-bold transition"
           >
-            End Call {currentUser?.role === "teacher" ? " & Claim Payment" : ""}
+            End Call
           </button>
         </div>
       </div>

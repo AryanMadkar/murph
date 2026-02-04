@@ -88,12 +88,7 @@ export default function TeacherDashboard() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
         <div className="flex gap-4">
-          <button
-            onClick={() => navigate("/wallet")}
-            className="px-5 py-2 cursor-pointer bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-          >
-            💰 Earnings: ₹{user?.walletBalance || 0}
-          </button>
+          {/* Wallet Removed */}
           <button
             onClick={logout}
             className="px-5 py-2 cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"

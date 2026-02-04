@@ -78,7 +78,7 @@ const setupSocket = (server) => {
     socket.on("send-message", (payload) => {
       const { roomId } = payload;
 
-      io.to(roomId).emit("receive-message", payload);
+      socket.to(roomId).emit("receive-message", payload);
     });
   });
 
