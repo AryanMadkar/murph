@@ -29,6 +29,7 @@ export default function SessionReview() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [tips, setTips] = useState("");
+  const [aiData, setAiData] = useState({ notes: "", transcription: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -45,6 +46,23 @@ export default function SessionReview() {
           sessionId,
         });
         setTips(tipsRes.data.tips);
+
+        // Fetch AI Notes & Transcription if meetingId exists
+        if (sessionRes.data.session?.meetingId) {
+          try {
+            const notesRes = await axios.get(
+              `${API_URL}/api/meetings/session-notes/${sessionRes.data.session.meetingId}`,
+            );
+            if (notesRes.data.success) {
+              setAiData({
+                notes: notesRes.data.notes,
+                transcription: notesRes.data.transcription,
+              });
+            }
+          } catch (e) {
+            console.warn("AI Notes not found (yet):", e.message);
+          }
+        }
       } catch (err) {
         setError(
           err.response?.data?.message || "Failed to load session analysis.",
@@ -232,6 +250,34 @@ export default function SessionReview() {
             </div>
           </div>
         </div>
+
+        {/* AI Notes and Transcription */}
+        {(aiData.notes || aiData.transcription) && (
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {aiData.notes && (
+              <div className="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-blue-500" />
+                  AI Session Summary
+                </h2>
+                <div className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
+                  {aiData.notes}
+                </div>
+              </div>
+            )}
+            {aiData.transcription && (
+              <div className="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-green-500" />
+                  Key Transcription
+                </h2>
+                <div className="text-gray-500 text-sm leading-relaxed max-h-[300px] overflow-y-auto italic pr-2 custom-scrollbar">
+                  "{aiData.transcription}"
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

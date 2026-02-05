@@ -145,6 +145,21 @@ export default function TeacherDashboard() {
     }
   };
 
+  const declineMeeting = async (meetingId) => {
+    try {
+      const res = await axios.post(
+        `${API_URL}/api/meetings/decline/${meetingId}`,
+      );
+
+      if (res.data.success) {
+        setMessage("✅ Meeting declined and student refunded.");
+        fetchDashboardData(user.id);
+      }
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || err.message));
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -244,14 +259,22 @@ export default function TeacherDashboard() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() =>
-                        acceptMeeting(req._id, req.studentId?._id)
-                      }
-                      className="w-full sm:w-auto px-8 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      Accept Session
-                    </button>
+                    <div className="flex gap-3 w-full sm:w-auto">
+                      <button
+                        onClick={() => declineMeeting(req._id)}
+                        className="flex-1 sm:flex-none px-6 py-3 border border-gray-200 text-gray-600 font-medium rounded-full transition-all hover:bg-gray-50 cursor-pointer"
+                      >
+                        Decline
+                      </button>
+                      <button
+                        onClick={() =>
+                          acceptMeeting(req._id, req.studentId?._id)
+                        }
+                        className="flex-1 sm:flex-none px-8 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        Accept Session
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
