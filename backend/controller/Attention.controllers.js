@@ -231,4 +231,6 @@ module.exports = {
   endAttentionSession,
   getAttentionSession,
   getLiveAttentionStatus,
+  calculateMetrics,
+  calculateTeacherEffectiveness,
 };

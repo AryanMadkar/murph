@@ -57,6 +57,7 @@ const walletTransactionSchema = new mongoose.Schema(
         "SESSION_PAYOUT", // ⭐ Teacher payout from pay-per-use session
         "REFUND", // Refund to student
         "ESCROW_REFUND", // ⭐ Unused escrow returned to student
+        "ESCROW_RELEASE", // ⭐ Escrow released to teacher on session complete
         "BONUS", // Quality bonus for teacher
         "WITHDRAWAL", // Withdraw to bank
         "PLATFORM_FEE", // Murph platform fee
