@@ -92,7 +92,7 @@ export default function TeacherUpload() {
             {/* Notifications */}
             {message && (
                 <div className="mb-8 p-4 bg-white border border-gray-100 shadow-sm rounded-xl flex items-center gap-3">
-                    <div className={`h-2 w-2 rounded-full ${message.includes("✅") ? "bg-green-500" : "bg-red-500"}`}></div>
+                    <div className={`h-2 w-2 rounded-full ${message.includes("✅") ? "bg-black" : "bg-gray-400"}`}></div>
                     <p className="font-medium text-gray-800">{message}</p>
                 </div>
             )}
@@ -115,7 +115,7 @@ export default function TeacherUpload() {
                                         title: e.target.value,
                                     })
                                 }
-                                className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-purple-500 focus:outline-none transition-all"
+                                className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-black focus:outline-none transition-all"
                                 placeholder="Python for Beginners"
                             />
                         </div>
@@ -133,7 +133,7 @@ export default function TeacherUpload() {
                                             type: e.target.value,
                                         })
                                     }
-                                    className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-purple-500 focus:outline-none transition-all appearance-none"
+                                    className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-black focus:outline-none transition-all appearance-none"
                                 >
                                     <option value="video">Video</option>
                                     <option value="document">Document</option>
@@ -153,7 +153,7 @@ export default function TeacherUpload() {
                                             price: e.target.value,
                                         })
                                     }
-                                    className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-purple-500 focus:outline-none transition-all"
+                                    className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-black focus:outline-none transition-all"
                                     placeholder="9.99"
                                 />
                             </div>
@@ -173,7 +173,7 @@ export default function TeacherUpload() {
                                             category: e.target.value,
                                         })
                                     }
-                                    className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-purple-500 focus:outline-none transition-all appearance-none"
+                                    className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-black focus:outline-none transition-all appearance-none"
                                 >
                                     <option value="">Select</option>
                                     <option value="Programming">Programming</option>
@@ -209,7 +209,7 @@ export default function TeacherUpload() {
                                         description: e.target.value,
                                     })
                                 }
-                                className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-purple-500 focus:outline-none transition-all resize-none"
+                                className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-black focus:outline-none transition-all resize-none"
                                 placeholder="Detailed description..."
                             />
                         </div>

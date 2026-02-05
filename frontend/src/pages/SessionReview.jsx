@@ -78,17 +78,17 @@ export default function SessionReview() {
   if (loading)
     return (
       <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center p-6 font-['Source_Sans_Pro']">
-        <Loader2 className="w-10 h-10 text-gray-400 animate-spin mb-4" />
-        <p className="text-gray-500 font-medium">Gathering AI Insights...</p>
+        <Loader2 className="w-10 h-10 text-gray-900 animate-spin mb-4" strokeWidth={1.5} />
+        <p className="text-gray-900 font-bold uppercase tracking-widest text-[10px]">Gathering AI Insights...</p>
       </div>
     );
 
   if (error)
     return (
       <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center p-6 font-['Source_Sans_Pro']">
-        <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Data</h2>
-        <p className="text-gray-500 text-center mb-6">{error}</p>
+        <AlertTriangle className="w-12 h-12 text-gray-900 mb-4" strokeWidth={1.5} />
+        <h2 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-wide">Error Loading Data</h2>
+        <p className="text-gray-500 text-center mb-6 font-medium">{error}</p>
         <button
           onClick={() => navigate("/teacher-dashboard")}
           className="px-8 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg cursor-pointer"
@@ -107,10 +107,10 @@ export default function SessionReview() {
 
   const getGradeColor = (grade) => {
     switch (grade) {
-      case "Excellent": return "bg-green-50 text-green-600 border-green-200";
-      case "Good": return "bg-blue-50 text-blue-600 border-blue-200";
-      case "Fair": return "bg-yellow-50 text-yellow-600 border-yellow-200";
-      default: return "bg-red-50 text-red-600 border-red-200";
+      case "Excellent": return "bg-gray-900 text-white border-transparent shadow-lg";
+      case "Good": return "bg-gray-100 text-gray-900 border-gray-200";
+      case "Fair": return "bg-gray-50 text-gray-600 border-gray-200";
+      default: return "bg-white text-gray-400 border-gray-100";
     }
   };
 
@@ -122,9 +122,9 @@ export default function SessionReview() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm hover:bg-gray-50 transition-all cursor-pointer"
+              className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-gray-900 transition-all cursor-pointer group"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-900 transition-transform group-hover:-translate-x-1" strokeWidth={1.5} />
             </button>
             <div>
               <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
@@ -134,16 +134,16 @@ export default function SessionReview() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className={`px-4 py-2 rounded-xl text-sm font-bold border flex items-center gap-2 ${getGradeColor(session.metrics?.engagementGrade)}`}>
-              <Activity className="w-4 h-4" />
+            <div className={`px-4 py-2 rounded-xl text-[10px] tracking-widest uppercase font-black border flex items-center gap-2 ${getGradeColor(session.metrics?.engagementGrade)}`}>
+              <Activity className="w-4 h-4" strokeWidth={1.5} />
               {session.metrics?.engagementGrade || "N/A"}
             </div>
             <button
               onClick={() => navigate("/teacher-dashboard")}
-              className="px-8 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center gap-2"
+              className="px-8 py-3 bg-gray-900 hover:bg-black text-white text-xs font-black uppercase tracking-widest rounded-full transition-all shadow-xl hover:-translate-y-0.5 cursor-pointer flex items-center gap-2"
             >
-              <Home className="w-4 h-4" />
-              Go to Dashboard
+              <Home className="w-4 h-4" strokeWidth={1.5} />
+              Dashboard
             </button>
           </div>
         </div>
@@ -162,8 +162,8 @@ export default function SessionReview() {
               label: "Consistency",
               val: `${(session.metrics?.consistencyScore * 100).toFixed(1)}%`,
               icon: Activity,
-              color: "text-purple-500",
-              bg: "bg-purple-50",
+              color: "text-gray-900",
+              bg: "bg-gray-50",
             },
             {
               label: "Duration",
@@ -176,8 +176,8 @@ export default function SessionReview() {
               label: "Max Focus",
               val: `${(session.metrics?.maxAttention * 100).toFixed(1)}%`,
               icon: Brain,
-              color: "text-pink-500",
-              bg: "bg-pink-50",
+              color: "text-gray-400",
+              bg: "bg-gray-50",
             },
           ].map((stat, i) => (
             <div
@@ -188,8 +188,8 @@ export default function SessionReview() {
                 <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400">
                   {stat.label}
                 </p>
-                <div className={`p-2 rounded-lg ${stat.bg}`}>
-                  <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                <div className={`p-2 rounded-lg bg-gray-50 border border-gray-100 shadow-sm`}>
+                  <stat.icon className={`w-4 h-4 text-gray-900`} strokeWidth={1.5} />
                 </div>
               </div>
               <div className="text-2xl font-black text-gray-900">{stat.val}</div>
@@ -202,7 +202,7 @@ export default function SessionReview() {
           {/* Attention Timeline */}
           <div className="lg:col-span-2 bg-white border border-gray-100 p-8 rounded-2xl shadow-sm">
             <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <TrendingUp className="text-blue-500 w-5 h-5" />
+              <TrendingUp className="text-gray-900 w-5 h-5" />
               Attention Timeline
             </h2>
             <div className="h-[300px]">
@@ -226,10 +226,10 @@ export default function SessionReview() {
                   <Area
                     type="monotone"
                     dataKey="score"
-                    stroke="#8b5cf6"
-                    fill="#8b5cf6"
-                    fillOpacity={0.15}
+                    stroke="#000000"
                     strokeWidth={2}
+                    fillOpacity={0.05}
+                    fill="#000000"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -237,15 +237,15 @@ export default function SessionReview() {
           </div>
 
           {/* Teaching Tips */}
-          <div className="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm flex flex-col">
-            <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-500" />
+          <div className="bg-gray-900 border border-gray-800 p-8 rounded-2xl shadow-2xl flex flex-col text-white">
+            <h2 className="text-lg font-black mb-6 flex items-center gap-2 uppercase tracking-widest text-white">
+              <Sparkles className="w-5 h-5 text-white" strokeWidth={1.5} />
               Teaching Tips
             </h2>
-            <div className="flex-1 overflow-y-auto pr-2 text-gray-600 text-sm leading-relaxed whitespace-pre-line max-h-[250px]">
+            <div className="flex-1 overflow-y-auto pr-2 text-gray-300 text-sm leading-relaxed whitespace-pre-line max-h-[250px] font-medium">
               {tips || "No tips available for this session."}
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-100 text-[10px] text-gray-400 text-center uppercase tracking-widest font-bold">
+            <div className="mt-4 pt-4 border-t border-white/10 text-[10px] text-white/50 text-center uppercase tracking-widest font-black">
               Powered by Groq • AI Pedagogical Coach
             </div>
           </div>
@@ -256,8 +256,8 @@ export default function SessionReview() {
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
             {aiData.notes && (
               <div className="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm">
-                <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <Brain className="w-5 h-5 text-blue-500" />
+                <h2 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-widest">
+                  <Brain className="w-5 h-5 text-gray-900" strokeWidth={1.5} />
                   AI Session Summary
                 </h2>
                 <div className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
@@ -267,8 +267,8 @@ export default function SessionReview() {
             )}
             {aiData.transcription && (
               <div className="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm">
-                <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-green-500" />
+                <h2 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-widest">
+                  <Activity className="w-5 h-5 text-gray-900" strokeWidth={1.5} />
                   Key Transcription
                 </h2>
                 <div className="text-gray-500 text-sm leading-relaxed max-h-[300px] overflow-y-auto italic pr-2 custom-scrollbar">

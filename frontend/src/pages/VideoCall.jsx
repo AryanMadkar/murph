@@ -480,7 +480,7 @@ export default function VideoCall() {
               <div className="absolute top-6 right-6 bg-black/40 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 shadow-2xl z-20 flex items-center gap-4 transition-all animate-in fade-in slide-in-from-right-4">
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2 mb-1">
-                    <div className={`h-2 w-2 rounded-full ${liveAttention.faceDetected ? "bg-green-500 animate-pulse" : "bg-red-500"}`}></div>
+                    <div className={`h-2 w-2 rounded-full ${liveAttention.faceDetected ? "bg-white animate-pulse" : "bg-gray-500"}`}></div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/70">
                       Live Engagement
                     </span>
@@ -515,7 +515,7 @@ export default function VideoCall() {
                       strokeDasharray={126}
                       strokeDashoffset={126 - (126 * liveAttention.score)}
                       strokeLinecap="round"
-                      className={`transition-all duration-1000 ${liveAttention.score > 0.7 ? "text-green-500" : liveAttention.score > 0.4 ? "text-yellow-500" : "text-red-500"}`}
+                      className={`transition-all duration-1000 ${liveAttention.score > 0.7 ? "text-white" : liveAttention.score > 0.4 ? "text-gray-400" : "text-gray-600"}`}
                     />
                   </svg>
                 </div>
@@ -578,9 +578,9 @@ export default function VideoCall() {
             onClick={() => setShowChat(!showChat)}
             className={`p-4 rounded-full transition-all relative ${showChat ? "bg-white text-black" : "bg-gray-700 hover:bg-gray-600"}`}
           >
-            <MessageSquare className="h-6 w-6" />
+            <MessageSquare className="h-6 w-6" strokeWidth={1.5} />
             {messages.length > 0 && !showChat && (
-              <span className="absolute top-0 right-0 h-3 w-3 bg-red-500 rounded-full border-2 border-gray-900"></span>
+              <span className="absolute top-0 right-0 h-3 w-3 bg-white rounded-full border-2 border-gray-900"></span>
             )}
           </button>
         </div>
@@ -614,8 +614,8 @@ export default function VideoCall() {
             >
               <div
                 className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.isMe
-                  ? "bg-blue-600 text-white rounded-tr-none"
-                  : "bg-gray-800 text-gray-200 rounded-tl-none"
+                  ? "bg-white text-black rounded-tr-none font-bold"
+                  : "bg-gray-800 text-gray-200 rounded-tl-none font-medium"
                   }`}
               >
                 {msg.message}
@@ -642,14 +642,14 @@ export default function VideoCall() {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Type into chat..."
-              className="w-full bg-gray-800 text-white pl-4 pr-12 py-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm placeholder-gray-500 transition-all border border-transparent focus:border-blue-500"
+              className="w-full bg-gray-800 text-white pl-4 pr-12 py-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-white text-sm placeholder-gray-500 transition-all border border-transparent focus:border-white"
             />
             <button
               type="submit"
               disabled={!inputMessage.trim()}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-white hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <Send className="h-5 w-5" />
+              <Send className="h-5 w-5" strokeWidth={1.5} />
             </button>
           </div>
         </form>

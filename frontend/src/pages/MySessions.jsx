@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ArrowLeft, Calendar, Clock, CheckCircle, XCircle, Video, DollarSign, Loader2, History } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, CheckCircle, XCircle, Video, DollarSign, Loader2, History, User } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -59,37 +59,37 @@ export default function MySessions() {
         switch (status) {
             case "completed":
                 return (
-                    <span className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">
+                    <span className="flex items-center gap-1 text-xs font-bold text-gray-900 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-widest">
                         <CheckCircle className="h-3 w-3" /> Completed
                     </span>
                 );
             case "pending":
                 return (
-                    <span className="flex items-center gap-1 text-xs font-medium text-orange-700 bg-orange-100 px-2 py-1 rounded-full">
+                    <span className="flex items-center gap-1 text-xs font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full uppercase tracking-widest border border-gray-100">
                         <Clock className="h-3 w-3" /> Pending
                     </span>
                 );
             case "accepted":
                 return (
-                    <span className="flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
+                    <span className="flex items-center gap-1 text-xs font-bold text-white bg-black px-3 py-1 rounded-full uppercase tracking-widest">
                         <Video className="h-3 w-3" /> Active
                     </span>
                 );
             case "declined":
                 return (
-                    <span className="flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
+                    <span className="flex items-center gap-1 text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-widest">
                         <XCircle className="h-3 w-3" /> Declined
                     </span>
                 );
             case "cancelled":
                 return (
-                    <span className="flex items-center gap-1 text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded-full">
+                    <span className="flex items-center gap-1 text-xs font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full uppercase tracking-widest">
                         <XCircle className="h-3 w-3" /> Cancelled
                     </span>
                 );
             default:
                 return (
-                    <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                    <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-widest">
                         {status}
                     </span>
                 );
@@ -114,11 +114,11 @@ export default function MySessions() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">My Sessions</h1>
-                    <p className="text-gray-500">View your learning history and active sessions.</p>
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tight">My Sessions</h1>
+                    <p className="text-gray-500 mt-1">View your learning history and active sessions.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-gray-400" />
+                    <Calendar className="h-5 w-5 text-gray-400" strokeWidth={1.5} />
                     <span className="text-sm text-gray-500">{sessions.length} total sessions</span>
                 </div>
             </div>
@@ -164,7 +164,7 @@ export default function MySessions() {
             {sessions.filter(s => s.status === 'pending').length > 0 && (
                 <div className="mb-8">
                     <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-                        <Clock className="h-5 w-5 text-orange-500" />
+                        <Clock className="h-5 w-5 text-gray-400" strokeWidth={1.5} />
                         Pending Requests
                     </h2>
                     <div className="grid gap-3">
@@ -174,8 +174,8 @@ export default function MySessions() {
                                 className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-lg">
-                                        ⏳
+                                    <div className="h-10 w-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center">
+                                        <Clock className="h-5 w-5 text-gray-400" strokeWidth={1.5} />
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-gray-900">
@@ -185,7 +185,7 @@ export default function MySessions() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                         Waiting for teacher...
                                     </span>
                                 </div>
@@ -197,7 +197,7 @@ export default function MySessions() {
 
             {/* Session History Header */}
             <div className="flex items-center gap-2 mb-4">
-                <History className="h-5 w-5 text-gray-500" />
+                <History className="h-5 w-5 text-gray-500" strokeWidth={1.5} />
                 <h2 className="text-xl font-bold text-gray-900">Session History</h2>
             </div>
 
@@ -224,8 +224,8 @@ export default function MySessions() {
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                    <div className="h-14 w-14 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center text-2xl">
-                                        👨‍🏫
+                                    <div className="h-14 w-14 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center">
+                                        <User className="h-5 w-5 text-gray-400" strokeWidth={1.5} />
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-gray-900 text-lg">
@@ -236,13 +236,12 @@ export default function MySessions() {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     {getStatusBadge(session.status)}
-                                    {session.status === "accepted" && session.roomId && (
+                                    {session.status === 'active' && (
                                         <button
                                             onClick={() => navigate(`/video-call/${session.roomId}`)}
-                                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
+                                            className="px-6 py-2 bg-gray-900 text-white text-xs font-black uppercase tracking-widest rounded-lg hover:bg-black transition-all shadow-lg hover:-translate-y-0.5 cursor-pointer"
                                         >
-                                            <Video className="h-4 w-4" />
-                                            Join
+                                            Join Session
                                         </button>
                                     )}
                                 </div>

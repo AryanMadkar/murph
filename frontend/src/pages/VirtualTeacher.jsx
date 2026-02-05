@@ -230,8 +230,8 @@ export default function VirtualTeacher() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl">
-            <GraduationCap className="h-6 w-6 text-white" />
+          <div className="p-3 bg-gray-900 rounded-xl shadow-lg">
+            <GraduationCap className="h-6 w-6 text-white" strokeWidth={1.5} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -257,8 +257,8 @@ export default function VirtualTeacher() {
         {status !== "completed" && (
           <div className="max-w-2xl mx-auto mb-12">
             <div className="text-center mb-8">
-              <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                What would you like to learn?
+              <h2 className="text-4xl font-black mb-4 text-gray-900 tracking-tight">
+                What would you like <span className="text-gray-400 font-bold">to learn?</span>
               </h2>
               <p className="text-gray-500">
                 Enter any topic and our AI will create a personalized video
@@ -274,13 +274,13 @@ export default function VirtualTeacher() {
                 onChange={(e) => setTopic(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
                 placeholder="e.g., Photosynthesis, Machine Learning, The French Revolution..."
-                className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all shadow-sm"
+                className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-black transition-all shadow-sm"
                 disabled={status === "generating"}
               />
               <button
                 onClick={handleGenerate}
                 disabled={status === "generating" || !topic.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-gray-300 disabled:to-gray-300 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-md"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-gray-900 hover:bg-black disabled:bg-gray-300 text-white rounded-xl font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer"
               >
                 {status === "generating" ? (
                   <>
@@ -320,20 +320,22 @@ export default function VirtualTeacher() {
 
             {/* Generation Status */}
             {status === "generating" && (
-              <div className="mt-8 p-8 bg-purple-50 border border-purple-100 rounded-2xl">
+              <div className="mt-8 p-10 bg-gray-50 border border-gray-100 rounded-3xl">
                 <div className="flex flex-col items-center text-center">
-                  <div className="relative mb-6">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse flex items-center justify-center">
-                      <Sparkles className="h-10 w-10 text-white" />
+                  <div className="relative mb-8">
+                    <div className="w-20 h-20 rounded-full bg-gray-900 animate-pulse flex items-center justify-center">
+                      <Sparkles className="h-8 w-8 text-white" strokeWidth={1.5} />
                     </div>
-                    <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-purple-500 border-t-transparent animate-spin" />
+                    <div className="absolute inset-x-0 -bottom-2 flex justify-center">
+                      <Loader2 className="h-5 w-5 text-gray-400 animate-spin" />
+                    </div>
                   </div>
                   <h3 className="text-xl font-bold mb-2 text-gray-900">
                     Creating Your Lesson
                   </h3>
                   <p className="text-gray-600 mb-4">{statusMessage}</p>
-                  <div className="w-full max-w-xs bg-purple-100 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full animate-pulse w-2/3" />
+                  <div className="w-full max-w-xs bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-gray-900 h-full rounded-full animate-pulse w-2/3" />
                   </div>
                   <p className="text-xs text-gray-500 mt-4">
                     This usually takes 2-3 minutes
@@ -407,7 +409,7 @@ export default function VirtualTeacher() {
 
               {/* Lesson Info */}
               <div className="mt-6">
-                <h2 className="text-2xl font-bold mb-2 text-gray-900">
+                <h2 className="text-3xl font-black mb-2 text-gray-900 tracking-tight">
                   {lesson.topic}
                 </h2>
                 <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -416,7 +418,7 @@ export default function VirtualTeacher() {
                     {Math.ceil(lesson.duration / 60)} min
                   </span>
                   <span className="flex items-center gap-1">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <CheckCircle className="h-4 w-4 text-gray-900" strokeWidth={1.5} />
                     AI Generated
                   </span>
                 </div>
@@ -457,14 +459,14 @@ export default function VirtualTeacher() {
             <div className="space-y-6">
               <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-900">
-                  <Lightbulb className="h-5 w-5 text-yellow-500" />
+                  <Lightbulb className="h-5 w-5 text-gray-900" strokeWidth={1.5} />
                   Key Takeaways
                 </h3>
                 <ul className="space-y-3">
                   {lesson.keyPoints && lesson.keyPoints.length > 0 ? (
                     lesson.keyPoints.map((point, index) => (
                       <li key={index} className="flex gap-3">
-                        <span className="shrink-0 w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">
+                        <span className="shrink-0 w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-[10px] font-black uppercase">
                           {index + 1}
                         </span>
                         <span className="text-gray-600">{point}</span>
@@ -480,7 +482,7 @@ export default function VirtualTeacher() {
               {lesson.script && (
                 <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                   <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-900">
-                    <BookOpen className="h-5 w-5 text-blue-500" />
+                    <BookOpen className="h-5 w-5 text-gray-900" strokeWidth={1.5} />
                     Full Script
                   </h3>
                   <div className="max-h-64 overflow-y-auto text-sm text-gray-600 leading-relaxed">
@@ -525,13 +527,12 @@ export default function VirtualTeacher() {
                       </h4>
                       <div className="flex items-center gap-3 text-xs text-gray-500">
                         <span
-                          className={`px-2 py-0.5 rounded ${
-                            l.status === "completed"
-                              ? "bg-green-100 text-green-700"
-                              : l.status === "failed"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-yellow-100 text-yellow-700"
-                          }`}
+                          className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${l.status === "completed"
+                            ? "bg-gray-900 text-white"
+                            : l.status === "failed"
+                              ? "bg-gray-100 text-gray-400"
+                              : "bg-gray-50 text-gray-500 border border-gray-100"
+                            }`}
                         >
                           {l.status}
                         </span>

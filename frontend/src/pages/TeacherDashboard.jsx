@@ -223,8 +223,8 @@ export default function TeacherDashboard() {
         {activeTab === "requests" ? (
           <>
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <Clock className="h-5 w-5 text-gray-400" />
-              Pending Requests
+              <Clock className="h-5 w-5 text-gray-900" strokeWidth={1.5} />
+              Upcoming Requests
             </h2>
 
             {loading ? (
@@ -246,8 +246,8 @@ export default function TeacherDashboard() {
                     className="p-6 bg-gray-50 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 transition-all hover:bg-gray-100"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center text-xl shadow-sm">
-                        🎓
+                      <div className="h-12 w-12 rounded-full bg-white border border-gray-100 flex items-center justify-center shadow-sm">
+                        <GraduationCap className="w-6 h-6 text-gray-400" />
                       </div>
                       <div>
                         <p className="text-sm text-gray-500 font-medium mb-0.5">
@@ -283,7 +283,7 @@ export default function TeacherDashboard() {
         ) : (
           <>
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-purple-500" />
+              <BookOpen className="h-5 w-5 text-gray-900" strokeWidth={1.5} />
               Published Materials
             </h2>
 
@@ -305,10 +305,10 @@ export default function TeacherDashboard() {
                 {materials.map((m) => (
                   <div
                     key={m._id}
-                    className="p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-purple-100 transition-all group"
+                    className="p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-all group"
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-900 bg-white border border-gray-100 px-2 py-1 rounded">
                         {m.type}
                       </span>
                       <span className="font-bold text-gray-900">
@@ -361,7 +361,7 @@ export default function TeacherDashboard() {
                             );
                           }
                         }}
-                        className="px-4 py-2 bg-white border border-gray-200 text-gray-600 hover:text-purple-600 hover:border-purple-200 text-xs font-bold rounded-lg transition-all"
+                        className="px-4 py-2 bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-400 text-xs font-bold rounded-lg transition-all"
                       >
                         View File
                       </button>

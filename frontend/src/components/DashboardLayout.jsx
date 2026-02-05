@@ -49,9 +49,9 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#F5F5F5] font-['Source_Sans_Pro']">
+    <div className="flex min-h-screen bg-[#FAFAFA] font-['Source_Sans_Pro']">
       {/* Sidebar */}
-      <aside className="w-56 bg-white border-r border-gray-100 flex flex-col fixed h-full z-10">
+      <aside className="w-64 bg-white border-r border-gray-100 flex flex-col fixed h-full z-10 transition-all">
         {/* Logo */}
         <div className="p-6 pb-4">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
@@ -59,34 +59,38 @@ export default function DashboardLayout() {
           </h1>
         </div>
 
-        {/* Profile Section */}
-        <div className="px-6 py-4 flex flex-col items-center border-b border-gray-100">
-          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-medium mb-2">
-            Profile
+        <div className="px-6 py-8 flex flex-col items-center border-b border-gray-100/50">
+          <div className="w-20 h-20 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 mb-3 shadow-inner">
+            <GraduationCap className="w-10 h-10" />
           </div>
-          <p className="text-sm font-semibold text-gray-900">
+          <p className="text-sm font-black text-gray-900">
             {user?.name || user?.email?.split("@")[0] || "Username"}
+          </p>
+          <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 mt-1">
+            Active Student
           </p>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6">
           <ul className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => navigate(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                    location.pathname === item.id
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <item.icon className="w-5 h-5" />
-                  {item.label}
-                </button>
-              </li>
-            ))}
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.id;
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => navigate(item.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all cursor-pointer group ${isActive
+                      ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                  >
+                    <item.icon className={`h-5 w-5 transition-colors ${isActive ? "text-white" : "text-gray-400 group-hover:text-gray-900"}`} strokeWidth={1.5} />
+                    {item.label}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
@@ -96,14 +100,14 @@ export default function DashboardLayout() {
             onClick={logout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all cursor-pointer"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="h-5 w-5" strokeWidth={1.5} />
             Logout
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-56 p-10">
+      <main className="flex-1 ml-64 p-10">
         <Outlet context={{ user }} />
       </main>
     </div>

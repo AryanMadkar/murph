@@ -96,32 +96,21 @@ export default function Explore() {
                 </span>
             </div>
 
-            {/* Status Message */}
             {message && (
-                <div className={`p-4 rounded-xl flex items-center gap-3 ${message.includes("✅") || message.includes("🎉")
-                    ? "bg-green-50 border border-green-200"
-                    : message.includes("❌")
-                        ? "bg-red-50 border border-red-200"
-                        : "bg-blue-50 border border-blue-200"
-                    }`}>
-                    <p className={`font-medium ${message.includes("✅") || message.includes("🎉")
-                        ? "text-green-700"
-                        : message.includes("❌")
-                            ? "text-red-700"
-                            : "text-blue-700"
-                        }`}>{message}</p>
+                <div className={`p-4 rounded-xl flex items-center gap-3 bg-gray-900 border border-gray-800 shadow-lg`}>
+                    <p className={`font-black uppercase tracking-widest text-[10px] text-white`}>{message}</p>
                 </div>
             )}
 
             {/* Tutors Grid */}
             {loading ? (
                 <div className="flex flex-col items-center justify-center h-64 text-gray-400 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                    <Loader2 className="h-10 w-10 animate-spin mb-3" />
+                    <Loader2 className="h-10 w-10 animate-spin mb-3" strokeWidth={1.5} />
                     <p className="font-medium">Loading available tutors...</p>
                 </div>
             ) : teachers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl bg-white">
-                    <User className="h-12 w-12 mb-4 opacity-30" />
+                    <User className="h-12 w-12 mb-4 opacity-30" strokeWidth={1.5} />
                     <p className="font-medium text-lg">No tutors available right now</p>
                     <p className="text-sm opacity-60 mt-1">Please check back later</p>
                 </div>
@@ -132,8 +121,8 @@ export default function Explore() {
                             key={teacher._id}
                             className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center group"
                         >
-                            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 mb-4 flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-                                👨‍🏫
+                            <div className="h-20 w-20 rounded-full bg-gray-50 border border-gray-100 mb-4 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-300">
+                                <User className="w-10 h-10 text-gray-400" strokeWidth={1.5} />
                             </div>
 
                             <h3 className="text-lg font-bold text-gray-900 mb-1 truncate w-full" title={teacher.email}>
@@ -145,9 +134,9 @@ export default function Explore() {
 
                             <button
                                 onClick={() => requestMeeting(teacher._id)}
-                                className="w-full py-3 bg-black text-white font-semibold rounded-xl hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2 group-hover:bg-purple-600 cursor-pointer"
+                                className="w-full py-3 bg-gray-900 text-white font-semibold rounded-xl hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2 group-hover:shadow-gray-200 cursor-pointer"
                             >
-                                <Video className="h-4 w-4" />
+                                <Video className="h-4 w-4" strokeWidth={1.5} />
                                 Request Session
                             </button>
                         </div>

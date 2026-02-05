@@ -8,7 +8,7 @@ const Hero = () => {
                 <div className="pr-2 relative z-20">
                     <h1 className="text-7xl font-bold leading-tight text-gray-900 tracking-tight m-0">
                         Learn by the Minute<br />
-                        Earn by the Minute<span className="text-yellow-500">.</span>
+                        Earn by the Minute<span className="text-[#FFF000]">.</span>
                     </h1>
                 </div>
 
@@ -31,7 +31,7 @@ const Hero = () => {
                     <div className="max-w-md px-8 py-8 border-l-4 border-gray-900">
                         <p className="text-xl font-bold leading-relaxed text-gray-900 mb-6">
                             Your Class. Your Time. Your Money.<br />
-                            {/* — <span className="text-orange-500">Set It Free in a Week.</span> */}
+                            — <span className="text-[#FFF000]">AI-powered tutoring with minute-based pricing.</span>
                         </p>
                         <p className="text-lg font-medium leading-relaxed text-gray-600 m-0">
                             A pay-per-use learning platform where students only pay for the time they actually learn, and teachers receive instant, transparent, and fair payments for every session. Powered by AI for smart class discovery and trustworthy reviews,<strong className="text-gray-900 font-extrabold">we create a balanced marketplace that rewards quality learning and quality teaching.</strong>.

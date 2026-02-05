@@ -20,6 +20,9 @@ import {
   FileSearch,
   BarChart2,
   PieChart as PieChartIcon,
+  Target,
+  Activity,
+  TrendingUp,
 } from "lucide-react";
 import {
   LineChart,
@@ -533,8 +536,8 @@ export default function StudentDashboard() {
         <div className="space-y-6 animate-in fade-in duration-500">
           {/* Greeting */}
           <div className="mb-10">
-            <h1 className="text-4xl font-bold text-gray-900">
-              <span className="text-purple-600">Hi there,</span>{" "}
+            <h1 className="text-4xl font-black text-gray-900 leading-tight">
+              <span className="text-gray-400">Hi there,</span>{" "}
               {user?.name || user?.email?.split("@")[0] || "User"}!
             </h1>
             <p className="text-3xl font-bold text-gray-900 mt-1">
@@ -558,8 +561,8 @@ export default function StudentDashboard() {
                     className="p-6 bg-gray-50 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 transition-all hover:bg-gray-100"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center text-xl shadow-sm">
-                        👨‍🏫
+                      <div className="h-12 w-12 rounded-full bg-white border border-gray-100 flex items-center justify-center shadow-sm">
+                        <User className="w-6 h-6 text-gray-400" />
                       </div>
                       <div>
                         <p className="text-sm text-gray-500 font-medium mb-0.5">
@@ -591,10 +594,10 @@ export default function StudentDashboard() {
           <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8 mb-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Compass className="h-5 w-5 text-purple-500" />
+                <Compass className="h-5 w-5 text-gray-900" strokeWidth={1.5} />
                 Recommended for You
               </h2>
-              <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded font-black uppercase tracking-widest">
+              <span className="text-[10px] bg-gray-900 text-white px-2 py-1 rounded font-black uppercase tracking-widest">
                 AI Powered
               </span>
             </div>
@@ -613,21 +616,21 @@ export default function StudentDashboard() {
                 {recommendations.map((item) => (
                   <div
                     key={item._id}
-                    className="group bg-gray-50 rounded-2xl overflow-hidden border border-transparent hover:border-purple-200 transition-all hover:shadow-lg"
+                    className="group bg-gray-50 rounded-2xl overflow-hidden border border-transparent hover:border-gray-200 transition-all hover:shadow-lg"
                   >
-                    <div className="h-32 bg-gray-200 flex items-center justify-center text-3xl">
+                    <div className="h-32 bg-gray-200/50 flex items-center justify-center text-3xl">
                       {item.type === "video" ? "🎬" : "📄"}
                     </div>
                     <div className="p-5">
                       <div className="flex justify-between items-start mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
                           {item.category}
                         </span>
                         <span className="font-bold text-gray-900">
                           ${item.priceInDollars.toFixed(2)}
                         </span>
                       </div>
-                      <h3 className="font-bold text-gray-900 mb-1 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                      <h3 className="font-bold text-gray-900 mb-1 line-clamp-1 group-hover:text-black transition-colors">
                         {item.title}
                       </h3>
                       <p className="text-xs text-gray-500 line-clamp-2 mb-4">
@@ -642,7 +645,7 @@ export default function StudentDashboard() {
                             handlePurchaseMaterial(item._id, item.price)
                           }
                           disabled={buyingMaterial === item._id}
-                          className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-full hover:bg-purple-600 transition-all cursor-pointer disabled:bg-gray-300 flex items-center gap-2"
+                          className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-full hover:bg-black transition-all cursor-pointer disabled:bg-gray-300 flex items-center gap-2"
                         >
                           {buyingMaterial === item._id ? (
                             <>
@@ -663,13 +666,13 @@ export default function StudentDashboard() {
 
           <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden p-8 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-purple-500" />
+              <BookOpen className="h-5 w-5 text-gray-900" strokeWidth={1.5} />
               My Purchased Content
             </h2>
 
             {myMaterials.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl">
-                <BookOpen className="h-10 w-10 mb-3 opacity-20" />
+                <BookOpen className="h-10 w-10 mb-3 opacity-20" strokeWidth={1.5} />
                 <p className="font-medium">Library is empty</p>
                 <p className="text-sm opacity-60">
                   Buy content from your recommendations to see it here.
@@ -683,7 +686,7 @@ export default function StudentDashboard() {
                     className="bg-white rounded-2xl overflow-hidden border border-gray-100 p-5 flex flex-col shadow-sm hover:shadow-md transition-all"
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-900 bg-gray-50 border border-gray-100 px-2 py-1 rounded">
                         {item.type}
                       </span>
                     </div>
@@ -773,7 +776,7 @@ export default function StudentDashboard() {
                       key={amt}
                       onClick={() => setTopupAmount(amt.toString())}
                       className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
-                        ? "bg-purple-600 text-white"
+                        ? "bg-black text-white"
                         : "bg-gray-100 hover:bg-gray-200 text-gray-700"
                         }`}
                     >
@@ -788,7 +791,7 @@ export default function StudentDashboard() {
                   placeholder="Or enter custom amount"
                   value={topupAmount}
                   onChange={(e) => setTopupAmount(e.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-lg mb-4 text-lg focus:outline-none focus:border-purple-500"
+                  className="w-full p-3 border border-gray-200 rounded-lg mb-4 text-lg focus:outline-none focus:border-black"
                   min="1"
                 />
 
@@ -796,7 +799,7 @@ export default function StudentDashboard() {
                   <button
                     onClick={handleTopup}
                     disabled={walletLoading || !topupAmount}
-                    className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
+                    className="flex-1 py-3 bg-black hover:bg-gray-800 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
                   >
                     {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
                   </button>
@@ -821,8 +824,8 @@ export default function StudentDashboard() {
       ) : (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="mb-10">
-            <h1 className="text-4xl font-bold text-gray-900">
-              Focus <span className="text-purple-600">Analytics</span>
+            <h1 className="text-4xl font-black text-gray-900 leading-tight">
+              Focus <span className="text-gray-400">Analytics</span>
             </h1>
             <p className="text-gray-500 mt-2">
               Track your learning journey and attention trends.
@@ -853,8 +856,8 @@ export default function StudentDashboard() {
                 label: "Total Sessions",
                 val: analyticsData.length,
                 icon: Calendar,
-                color: "text-purple-500",
-                bg: "bg-purple-50",
+                color: "text-gray-900",
+                bg: "bg-gray-50",
               },
               {
                 label: "Consistency",
@@ -896,33 +899,31 @@ export default function StudentDashboard() {
           {/* Focus Trend Chart */}
           <div className="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm">
             <h2 className="text-xl font-bold text-gray-900 mb-8 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-purple-500" />
+              <TrendingUp className="h-5 w-5 text-gray-900" strokeWidth={1.5} />
               Learning Momentum
             </h2>
             <div className="h-[350px] w-full">
               {analyticsData.length > 1 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient
-                        id="focusGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="#8b5cf6"
-                          stopOpacity={0.1}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#8b5cf6"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
+                    <linearGradient
+                      id="focusGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="5%"
+                        stopColor="#000000"
+                        stopOpacity={0.1}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="#000000"
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
@@ -951,7 +952,7 @@ export default function StudentDashboard() {
                     <Area
                       type="monotone"
                       dataKey="focus"
-                      stroke="#8b5cf6"
+                      stroke="#000000"
                       strokeWidth={3}
                       fillOpacity={1}
                       fill="url(#focusGradient)"
@@ -1038,7 +1039,7 @@ export default function StudentDashboard() {
                           onClick={() =>
                             navigate(`/session-review/${session._id}`)
                           }
-                          className="text-purple-600 font-bold text-xs hover:text-purple-700 underline-offset-4 hover:underline cursor-pointer"
+                          className="text-gray-900 font-black text-xs hover:text-black underline-offset-4 hover:underline cursor-pointer"
                         >
                           View Review
                         </button>
