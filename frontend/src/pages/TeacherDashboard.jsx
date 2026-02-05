@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
-import { Loader2, CheckCircle, Clock, BookOpen } from "lucide-react";
+import { Loader2, CheckCircle, Clock, BookOpen, GraduationCap } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const socket = io(API_URL);
