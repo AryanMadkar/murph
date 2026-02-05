@@ -16,27 +16,30 @@ import {
   BookOpen,
   ArrowRight,
   Plus,
+  FileText,
+  FileSearch,
 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL;
-
 
 const socket = io(API_URL);
 
 export default function StudentDashboard() {
   const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("home");
+  const [teachers, setTeachers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState([]);
+  const [recLoading, setRecLoading] = useState(true);
+  const [myMaterials, setMyMaterials] = useState([]);
+  const [buyingMaterial, setBuyingMaterial] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const pollingRef = useRef(null);
-
-  // State variables
-  const [loading, setLoading] = useState(false);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]);
-
-
 
   // Wallet state
   const [walletBalance, setWalletBalance] = useState(0);
@@ -45,16 +48,16 @@ export default function StudentDashboard() {
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null); // null, 'processing', 'success', 'failed'
 
-  // Get auth token
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
-    return { Authorization: `Bearer ${token}` };
-  };
-
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
+  };
+
+  // Get auth token
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return { Authorization: `Bearer ${token}` };
   };
 
   // Fetch wallet balance
@@ -113,11 +116,6 @@ export default function StudentDashboard() {
       setRecLoading(false);
     }
   };
-
-  const [recommendations, setRecommendations] = useState([]);
-  const [recLoading, setRecLoading] = useState(false);
-  const [myMaterials, setMyMaterials] = useState([]);
-  const [buyingMaterial, setBuyingMaterial] = useState(null);
 
   const handlePurchaseMaterial = async (materialId, price) => {
     if (walletBalance < price / 100) {
@@ -334,6 +332,23 @@ export default function StudentDashboard() {
     };
   }, []);
 
+  // Fetch session history (for My Sessions)
+  const fetchHistory = async (studentId) => {
+    setHistoryLoading(true);
+    try {
+      const res = await axios.get(
+        `${API_URL}/api/meetings/student/${studentId}/history`,
+      );
+      if (res.data.success) {
+        setSessionHistory(res.data.sessions);
+      }
+    } catch (err) {
+      console.error("Failed to fetch session history:", err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
     const userData = localStorage.getItem("user");
     let parsedUser = null;
@@ -351,26 +366,33 @@ export default function StudentDashboard() {
     }
     setUser(parsedUser);
 
-    // Fetch wallet balance
+    // Initial data fetch
     fetchBalance();
-
-    // Fetch all app data (sessions, etc.)
     fetchAppData(parsedUser._id);
-
-    // Check for pending payment (after redirect back)
+    fetchHistory(parsedUser._id);
     verifyPendingPayment();
 
     // Register with socket
     socket.emit("register-user", parsedUser._id);
 
+    // Fetch teachers list
+    axios
+      .get(`${API_URL}/api/meetings/teachers`)
+      .then((res) => {
+        setTeachers(res.data.teachers);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setMessage("Error loading teachers: " + err.message);
+        setLoading(false);
+      });
 
-
+    // Socket listeners
     socket.on("meeting-accepted", ({ roomId }) => {
       setMessage("🎉 Meeting accepted! Joining call...");
       setTimeout(() => navigate(`/video-call/${roomId}`), 1500);
     });
 
-    // ⭐ Real-time wallet update listener (premium UX!)
     socket.on("wallet-updated", (data) => {
       console.log("💰 Real-time wallet update received:", data);
       setWalletBalance(data.newBalance);
@@ -378,9 +400,7 @@ export default function StudentDashboard() {
       setMessage(`✅ $${data.amount.toFixed(2)} added to your wallet!`);
       setShowTopupModal(false);
       setTopupAmount("");
-      // Clear pending payment
       localStorage.removeItem("pendingPaymentIntent");
-      // Stop any polling
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
@@ -392,10 +412,6 @@ export default function StudentDashboard() {
       socket.off("wallet-updated");
     };
   }, [navigate]);
-
-
-
-
 
   // Simulate payment completion (DEV ONLY)
   const handleSimulateComplete = async () => {
@@ -439,8 +455,6 @@ export default function StudentDashboard() {
       </div>
 
       {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
-
-
 
       {/* Active Sessions - Join Video Call */}
       {activeSessions.length > 0 && (
@@ -584,9 +598,7 @@ export default function StudentDashboard() {
                     {item.type}
                   </span>
                 </div>
-                <h3 className="font-bold text-gray-900 mb-1">
-                  {item.title}
-                </h3>
+                <h3 className="font-bold text-gray-900 mb-1">{item.title}</h3>
                 <p className="text-xs text-gray-500 line-clamp-2 mb-4 flex-grow">
                   {item.description}
                 </p>
@@ -606,7 +618,7 @@ export default function StudentDashboard() {
                     } catch (err) {
                       setMessage(
                         "❌ Failed to access: " +
-                        (err.response?.data?.message || err.message),
+                          (err.response?.data?.message || err.message),
                       );
                     }
                   }}
@@ -639,20 +651,22 @@ export default function StudentDashboard() {
       {/* Success/Error Message */}
       {message && paymentStatus !== "processing" && (
         <div
-          className={`p-4 mb-4 rounded-lg ${paymentStatus === "success"
-            ? "bg-green-50 border border-green-200"
-            : paymentStatus === "failed"
-              ? "bg-red-50 border border-red-200"
-              : "bg-blue-50 border border-blue-200"
-            }`}
+          className={`p-4 mb-4 rounded-lg ${
+            paymentStatus === "success"
+              ? "bg-green-50 border border-green-200"
+              : paymentStatus === "failed"
+                ? "bg-red-50 border border-red-200"
+                : "bg-blue-50 border border-blue-200"
+          }`}
         >
           <p
-            className={`font-medium ${paymentStatus === "success"
-              ? "text-green-700"
-              : paymentStatus === "failed"
-                ? "text-red-700"
-                : "text-blue-700"
-              }`}
+            className={`font-medium ${
+              paymentStatus === "success"
+                ? "text-green-700"
+                : paymentStatus === "failed"
+                  ? "text-red-700"
+                  : "text-blue-700"
+            }`}
           >
             {message}
           </p>
@@ -671,10 +685,11 @@ export default function StudentDashboard() {
                 <button
                   key={amt}
                   onClick={() => setTopupAmount(amt.toString())}
-                  className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${topupAmount === amt.toString()
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    }`}
+                  className={`py-2 rounded-lg font-semibold transition-colors cursor-pointer ${
+                    topupAmount === amt.toString()
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  }`}
                 >
                   ${amt}
                 </button>
@@ -697,9 +712,7 @@ export default function StudentDashboard() {
                 disabled={walletLoading || !topupAmount}
                 className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg font-semibold transition-colors cursor-pointer"
               >
-                {walletLoading
-                  ? "Processing..."
-                  : `Pay $${topupAmount || "0"}`}
+                {walletLoading ? "Processing..." : `Pay $${topupAmount || "0"}`}
               </button>
               <button
                 onClick={() => {

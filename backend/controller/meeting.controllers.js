@@ -3,7 +3,10 @@ const User = require("../models/user.models");
 const WalletTransaction = require("../models/walletTransaction.models");
 const { emitWalletUpdate } = require("../socket/socket");
 const AttentionSession = require("../models/Attentionsession.models");
+const Session = require("../models/session.models");
 const { v4: uuidv4 } = require("uuid");
+const axios = require("axios");
+const { uploadToS3 } = require("../utils/s3");
 
 // Session pricing (in cents)
 const SESSION_PRICE_CENTS = 500; // $5.00 per session - adjust as needed
@@ -168,8 +171,6 @@ const getStudentSessions = async (req, res) => {
   }
 };
 
-const Session = require("../models/session.models");
-
 // Get student's complete session history (for My Sessions page)
 const getStudentSessionHistory = async (req, res) => {
   try {
@@ -178,7 +179,7 @@ const getStudentSessionHistory = async (req, res) => {
     // 1. Get lifecycle meetings (Pending, Active, Cancelled)
     const meetings = await Meeting.find({
       studentId,
-      status: { $ne: "completed" } // Exclude completed from here (we'll look in Sessions)
+      status: { $ne: "completed" }, // Exclude completed from here (we'll look in Sessions)
     })
       .populate("teacherId", "email name")
       .sort({ createdAt: -1 });
@@ -189,7 +190,7 @@ const getStudentSessionHistory = async (req, res) => {
       .sort({ start_time: -1 });
 
     // 3. Normalize Session data to match UI expectations
-    const formattedSessions = sessions.map(s => ({
+    const formattedSessions = sessions.map((s) => ({
       _id: s._id,
       meetingId: s.meetingId,
       teacherId: s.teacherId,
@@ -198,15 +199,17 @@ const getStudentSessionHistory = async (req, res) => {
       startedAt: s.start_time,
       endedAt: s.end_time,
       durationMinutes: s.duration_minutes || s.calculated_duration,
-      sessionPrice: s.final_cost ? s.final_cost * 100 : 0, // Assume final_cost is in dollars, convert to cents if needed, or check model
+      sessionPrice: s.final_cost ? s.final_cost * 100 : 0,
       roomId: s.roomId,
-      isDetailed: true
+      transcription: s.transcription,
+      notes: s.notes,
+      isDetailed: true,
     }));
 
     // 4. Combine: Pending/Active (Meetings) + Completed (Sessions)
     // If a session exists for a meeting, use the session details
-    const allItems = [...meetings, ...formattedSessions].sort((a, b) =>
-      new Date(b.createdAt) - new Date(a.createdAt)
+    const allItems = [...meetings, ...formattedSessions].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
     );
 
     res.json({
@@ -840,6 +843,113 @@ const testCompleteTeacherSession = async (req, res) => {
   }
 };
 
+// Handle audio recording upload from student session
+const uploadSessionAudio = async (req, res) => {
+  try {
+    const { roomId } = req.body;
+    const audioFile = req.file;
+
+    if (!audioFile || !roomId) {
+      return res.status(400).json({
+        success: false,
+        message: "Audio file and room ID are required",
+      });
+    }
+
+    const meeting = await Meeting.findOne({ roomId });
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found for this room",
+      });
+    }
+
+    // 1. Upload to S3
+    const s3Key = await uploadToS3(
+      audioFile.buffer,
+      `session_${roomId}_${Date.now()}.webm`,
+      "audio/webm",
+      "recordings",
+    );
+
+    // 2. Update Session record (or create one if it doesn't exist)
+    let session = await Session.findOne({ roomId });
+    if (!session) {
+      session = new Session({
+        meetingId: meeting._id,
+        studentId: meeting.studentId,
+        teacherId: meeting.teacherId,
+        roomId: meeting.roomId,
+        status: "COMPLETED",
+      });
+    }
+
+    session.audio_url = s3Key;
+    await session.save();
+
+    // 3. Trigger AI Processing (Asynchronous)
+    const AI_SERVICE_URL =
+      process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+    axios
+      .post(`${AI_SERVICE_URL}/session/notes/${roomId}`, {
+        audio_key: s3Key,
+        student_id: meeting.studentId,
+        teacher_id: meeting.teacherId,
+      })
+      .catch((err) => console.error("AI Service trigger error:", err.message));
+
+    res.json({
+      success: true,
+      message: "Audio uploaded. AI is processing notes...",
+      audio_url: s3Key,
+    });
+  } catch (error) {
+    console.error("Upload audio error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+// Save processed notes from AI service
+const saveNotes = async (req, res) => {
+  try {
+    const { roomId, transcription, notes } = req.body;
+
+    if (!roomId) {
+      return res.status(400).json({
+        success: false,
+        message: "Room ID is required",
+      });
+    }
+
+    // Update Session record
+    const session = await Session.findOne({ roomId });
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found",
+      });
+    }
+
+    session.transcription = transcription;
+    session.notes = notes;
+    await session.save();
+
+    res.json({
+      success: true,
+      message: "Notes saved successfully",
+    });
+  } catch (error) {
+    console.error("Save notes error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   requestMeeting,
   getPendingMeetings,
@@ -853,5 +963,7 @@ module.exports = {
   getTeachers,
   getWalletBalance,
   addMoney,
+  uploadSessionAudio,
+  saveNotes,
   testCompleteTeacherSession,
 };

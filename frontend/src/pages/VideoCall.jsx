@@ -52,9 +52,80 @@ export default function VideoCall() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [showChat, setShowChat] = useState(false);
+  const recordingRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return { Authorization: `Bearer ${token}` };
+  };
+
+  const startRecording = () => {
+    try {
+      const stream = localStreamRef.current;
+      if (!stream) return;
+
+      const mediaRecorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = uploadRecording;
+      mediaRecorder.start();
+      recordingRef.current = mediaRecorder;
+      console.log("🎙️ Session recording started");
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (recordingRef.current && recordingRef.current.state !== "inactive") {
+      recordingRef.current.stop();
+      console.log("🎙️ Session recording stopped");
+    }
+  };
+
+  const uploadRecording = async () => {
+    if (
+      audioChunksRef.current.length === 0 ||
+      !currentUser ||
+      currentUser.role !== "student"
+    )
+      return;
+
+    const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+    const formData = new FormData();
+    formData.append("audio", audioBlob);
+    formData.append("roomId", roomId);
+
+    try {
+      await axios.post(`${API_URL}/api/meetings/upload-audio`, formData, {
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      console.log("✅ Session audio uploaded for AI notes");
+    } catch (err) {
+      console.error("❌ Failed to upload session audio:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (connected) {
+      startRecording();
+    }
+    return () => stopRecording();
+  }, [connected]);
 
   useEffect(() => {
     socketRef.current = io(API_URL);
+
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     setCurrentUser(user);
 
@@ -210,6 +281,7 @@ export default function VideoCall() {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
+      stopRecording();
       closePeerConnection();
       if (socketRef.current) socketRef.current.disconnect();
     };
@@ -483,10 +555,11 @@ export default function VideoCall() {
               className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}
             >
               <div
-                className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.isMe
-                  ? "bg-blue-600 text-white rounded-tr-none"
-                  : "bg-gray-800 text-gray-200 rounded-tl-none"
-                  }`}
+                className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                  msg.isMe
+                    ? "bg-blue-600 text-white rounded-tr-none"
+                    : "bg-gray-800 text-gray-200 rounded-tl-none"
+                }`}
               >
                 {msg.message}
               </div>

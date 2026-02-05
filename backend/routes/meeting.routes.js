@@ -13,6 +13,8 @@ const {
   getTeachers,
   getWalletBalance,
   addMoney,
+  uploadSessionAudio,
+  saveNotes,
   testCompleteTeacherSession,
 } = require("../controller/meeting.controllers");
 
@@ -45,6 +47,15 @@ router.post("/decline/:meetingId", declineMeeting);
 
 // Cancel a meeting (⭐ refunds student from escrow)
 router.post("/cancel", cancelMeeting);
+
+const multer = require("multer");
+const upload = multer();
+
+// Audio recording upload (for AI notes)
+router.post("/upload-audio", upload.single("audio"), uploadSessionAudio);
+
+// Save results from AI service
+router.post("/save-notes", saveNotes);
 
 // ⭐ TEST: Complete latest session for a teacher (for testing payment)
 router.post("/test-complete", testCompleteTeacherSession);
