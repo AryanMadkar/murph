@@ -61,7 +61,7 @@ export default function DashboardLayout() {
 
         <div className="px-6 py-8 flex flex-col items-center border-b border-gray-100/50">
           <div className="w-20 h-20 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 mb-3 shadow-inner">
-            <GraduationCap className="w-10 h-10" />
+            <GraduationCap className="w-10 h-10" strokeWidth={1.5} />
           </div>
           <p className="text-sm font-black text-gray-900">
             {user?.name || user?.email?.split("@")[0] || "Username"}

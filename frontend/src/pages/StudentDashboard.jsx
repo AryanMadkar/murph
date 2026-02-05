@@ -536,8 +536,8 @@ export default function StudentDashboard() {
         <div className="space-y-6 animate-in fade-in duration-500">
           {/* Greeting */}
           <div className="mb-10">
-            <h1 className="text-4xl font-black text-gray-900 leading-tight">
-              <span className="text-gray-400">Hi there,</span>{" "}
+            <h1 className="text-4xl font-black text-gray-500 leading-tight">
+              <span className="text-gray-600">Hi there,</span>{" "}
               {user?.name || user?.email?.split("@")[0] || "User"}!
             </h1>
             <p className="text-3xl font-bold text-gray-900 mt-1">
