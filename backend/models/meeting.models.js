@@ -59,6 +59,15 @@ const meetingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // ⭐ Pay-per-use billing fields
+    escrowLocked: {
+      type: Number,
+      default: 0, // Amount locked in escrow (in cents)
+    },
+    finalCharge: {
+      type: Number,
+      default: 0, // Final amount charged after session
+    },
   },
   { timestamps: true },
 );
