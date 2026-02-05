@@ -13,6 +13,5 @@ router.post("/record", recordAttentionData);
 router.post("/end", endAttentionSession);
 router.get("/session/:sessionId", getAttentionSession);
 router.get("/live/:roomId", getLiveAttentionStatus);
-router.get("/history/:studentId", getStudentAttentionHistory);
 
 module.exports = router;

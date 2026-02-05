@@ -10,6 +10,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [selectedRole, setSelectedRole] = useState("student");
   const navigate = useNavigate();
 
   // Auto-redirect if already logged in
@@ -97,6 +98,35 @@ export default function Login() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl shadow-gray-100 sm:rounded-2xl sm:px-10 border border-gray-100">
           <div className="space-y-6">
+            {/* Role Toggle */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                I am a...
+              </label>
+              <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole("student")}
+                  className={`flex-1 py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer ${selectedRole === "student"
+                      ? "bg-gray-900 text-white shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  Student
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole("teacher")}
+                  className={`flex-1 py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer ${selectedRole === "teacher"
+                      ? "bg-gray-900 text-white shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  Teacher
+                </button>
+              </div>
+            </div>
+
             {/* Email Input */}
             <div>
               <label
@@ -196,8 +226,8 @@ export default function Login() {
                 onClick={handleLogin}
                 disabled={loading}
                 className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 ${loading
-                    ? "bg-black cursor-not-allowed opacity-50"
-                    : "bg-black hover:bg-gray-900"
+                  ? "bg-black cursor-not-allowed opacity-50"
+                  : "bg-black hover:bg-gray-900"
                   }`}
               >
                 {loading ? (

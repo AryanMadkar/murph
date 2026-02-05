@@ -8,7 +8,7 @@ const Hero = () => {
                 <div className="pr-2 relative z-20">
                     <h1 className="text-7xl font-bold leading-tight text-gray-900 tracking-tight m-0">
                         Learn by the Minute<br />
-                        Earn by the Minute<span className="text-orange-500">.</span>
+                        Earn by the Minute<span className="text-yellow-500">.</span>
                     </h1>
                 </div>
 
