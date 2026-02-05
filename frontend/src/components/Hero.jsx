@@ -33,7 +33,7 @@ const Hero = () => {
                             Your Class. Your Time. Your Money.<br />
                             — <span className="text-[#E6D800]">AI-powered tutoring with minute-based pricing.</span>
                         </p>
-                        <p className="text-lg font-medium leading-relaxed text-gray-600 m-0">
+                        <p className="text-lg font-medium leading-relaxed text-gray-500 m-0">
                             A pay-per-use learning platform where students only pay for the time they actually learn, and teachers receive instant, transparent, and fair payments for every session. Powered by AI for smart class discovery and trustworthy reviews,<strong className="text-gray-900 font-extrabold">we create a balanced marketplace that rewards quality learning and quality teaching.</strong>.
                         </p>
                     </div>

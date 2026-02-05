@@ -109,7 +109,7 @@ export default function SessionReview() {
     switch (grade) {
       case "Excellent": return "bg-gray-900 text-white border-transparent shadow-lg";
       case "Good": return "bg-gray-100 text-gray-900 border-gray-200";
-      case "Fair": return "bg-gray-50 text-gray-600 border-gray-200";
+      case "Fair": return "bg-gray-50 text-gray-500 border-gray-200";
       default: return "bg-white text-gray-400 border-gray-100";
     }
   };
@@ -260,7 +260,7 @@ export default function SessionReview() {
                   <Brain className="w-5 h-5 text-gray-900" strokeWidth={1.5} />
                   AI Session Summary
                 </h2>
-                <div className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
+                <div className="text-gray-500 text-sm leading-relaxed whitespace-pre-line">
                   {aiData.notes}
                 </div>
               </div>

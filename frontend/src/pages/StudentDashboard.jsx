@@ -537,7 +537,7 @@ export default function StudentDashboard() {
           {/* Greeting */}
           <div className="mb-10">
             <h1 className="text-4xl font-black text-gray-500 leading-tight">
-              <span className="text-gray-600">Hi there,</span>{" "}
+              <span className="text-gray-500">Hi there,</span>{" "}
               {user?.name || user?.email?.split("@")[0] || "User"}!
             </h1>
             <p className="text-3xl font-bold text-gray-900 mt-1">
@@ -545,7 +545,7 @@ export default function StudentDashboard() {
             </p>
           </div>
 
-          {user && <p className="text-gray-600 mb-6">Welcome, {user.email}</p>}
+          {user && <p className="text-gray-500 mb-6">Welcome, {user.email}</p>}
 
           {/* Pending Requests Section */}
           {pendingRequests.length > 0 && (
@@ -1030,7 +1030,7 @@ export default function StudentDashboard() {
                         </div>
                       </td>
                       <td className="px-8 py-5">
-                        <span className="text-sm font-medium text-gray-600">
+                        <span className="text-sm font-medium text-gray-500">
                           {Math.round(session.metrics?.consistencyScore * 100)}%
                         </span>
                       </td>

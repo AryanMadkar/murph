@@ -190,7 +190,7 @@ export default function TeacherUpload() {
                                     type="file"
                                     required
                                     onChange={(e) => setSelectedFile(e.target.files[0])}
-                                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200"
+                                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-gray-100 file:text-gray-500 hover:file:bg-gray-200"
                                 />
                             </div>
                         </div>

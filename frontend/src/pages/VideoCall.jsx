@@ -515,7 +515,7 @@ export default function VideoCall() {
                       strokeDasharray={126}
                       strokeDashoffset={126 - (126 * liveAttention.score)}
                       strokeLinecap="round"
-                      className={`transition-all duration-1000 ${liveAttention.score > 0.7 ? "text-white" : liveAttention.score > 0.4 ? "text-gray-400" : "text-gray-600"}`}
+                      className={`transition-all duration-1000 ${liveAttention.score > 0.7 ? "text-white" : liveAttention.score > 0.4 ? "text-gray-400" : "text-gray-500"}`}
                     />
                   </svg>
                 </div>

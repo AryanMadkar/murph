@@ -109,7 +109,7 @@ export default function Login() {
           <h2 className="mt-2 text-center text-3xl font-bold tracking-tight text-gray-900">
             Welcome back
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-500">
             Or{" "}
             <Link
               to="/register"
@@ -198,7 +198,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500 transition-colors cursor-pointer"
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" strokeWidth={1.5} />

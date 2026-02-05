@@ -333,7 +333,7 @@ export default function VirtualTeacher() {
                   <h3 className="text-xl font-bold mb-2 text-gray-900">
                     Creating Your Lesson
                   </h3>
-                  <p className="text-gray-600 mb-4">{statusMessage}</p>
+                  <p className="text-gray-500 mb-4">{statusMessage}</p>
                   <div className="w-full max-w-xs bg-gray-200 rounded-full h-1.5 overflow-hidden">
                     <div className="bg-gray-900 h-full rounded-full animate-pulse w-2/3" />
                   </div>
@@ -469,7 +469,7 @@ export default function VirtualTeacher() {
                         <span className="shrink-0 w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-[10px] font-black uppercase">
                           {index + 1}
                         </span>
-                        <span className="text-gray-600">{point}</span>
+                        <span className="text-gray-500">{point}</span>
                       </li>
                     ))
                   ) : (
@@ -485,7 +485,7 @@ export default function VirtualTeacher() {
                     <BookOpen className="h-5 w-5 text-gray-900" strokeWidth={1.5} />
                     Full Script
                   </h3>
-                  <div className="max-h-64 overflow-y-auto text-sm text-gray-600 leading-relaxed">
+                  <div className="max-h-64 overflow-y-auto text-sm text-gray-500 leading-relaxed">
                     {lesson.script}
                   </div>
                 </div>
