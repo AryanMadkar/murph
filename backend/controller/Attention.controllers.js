@@ -225,10 +225,32 @@ const getLiveAttentionStatus = async (req, res) => {
   }
 };
 
+/**
+ * Get attention history for a student
+ */
+const getStudentAttentionHistory = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const history = await AttentionSession.find({
+      studentId,
+      status: "completed",
+    })
+      .sort({ sessionStartTime: -1 })
+      .limit(10);
+
+    res.json({ success: true, history });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   startAttentionSession,
   recordAttentionData,
   endAttentionSession,
   getAttentionSession,
   getLiveAttentionStatus,
+  calculateMetrics,
+  calculateTeacherEffectiveness,
+  getStudentAttentionHistory,
 };

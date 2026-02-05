@@ -52,6 +52,10 @@ export default function VideoCall() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [showChat, setShowChat] = useState(false);
+  const [liveAttention, setLiveAttention] = useState({
+    score: 0.85, // Default/Starting score
+    faceDetected: true,
+  });
   const recordingRef = useRef(null);
   const audioChunksRef = useRef([]);
 
@@ -218,13 +222,20 @@ export default function VideoCall() {
 
       // Handle mutual termination
       socket.on("session-ended", (payload) => {
-        addLog("The other participant has ended the session.");
+        console.log("The other participant has ended the session.");
         // Redirect teacher to review if they didn't initiate the end
         if (currentUser?.role === "teacher" && payload.attentionSessionId) {
           navigate(`/session-review/${payload.attentionSessionId}`);
         } else {
           navigate(-1);
         }
+      });
+
+      socket.on("attention-update", (data) => {
+        setLiveAttention({
+          score: data.attentionScore,
+          faceDetected: data.faceDetected,
+        });
       });
     };
 
@@ -464,6 +475,53 @@ export default function VideoCall() {
               </div>
             )}
 
+            {/* Teacher's Live Attention Widget */}
+            {currentUser?.role === "teacher" && connected && (
+              <div className="absolute top-6 right-6 bg-black/40 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 shadow-2xl z-20 flex items-center gap-4 transition-all animate-in fade-in slide-in-from-right-4">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`h-2 w-2 rounded-full ${liveAttention.faceDetected ? "bg-green-500 animate-pulse" : "bg-red-500"}`}></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/70">
+                      Live Engagement
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-black text-white">
+                      {Math.round(liveAttention.score * 100)}%
+                    </span>
+                    <span className="text-[10px] font-bold text-white/50 lowercase">
+                      focus
+                    </span>
+                  </div>
+                </div>
+                <div className="w-12 h-12 relative flex items-center justify-center">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="transparent"
+                      className="text-white/10"
+                    />
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="transparent"
+                      strokeDasharray={126}
+                      strokeDashoffset={126 - (126 * liveAttention.score)}
+                      strokeLinecap="round"
+                      className={`transition-all duration-1000 ${liveAttention.score > 0.7 ? "text-green-500" : liveAttention.score > 0.4 ? "text-yellow-500" : "text-red-500"}`}
+                    />
+                  </svg>
+                </div>
+              </div>
+            )}
+
             {/* Local Video (Floating PiP) */}
             <div className="absolute bottom-6 right-6 w-64 aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/10 group transition-transform hover:scale-105">
               <video
@@ -555,11 +613,10 @@ export default function VideoCall() {
               className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}
             >
               <div
-                className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                  msg.isMe
-                    ? "bg-blue-600 text-white rounded-tr-none"
-                    : "bg-gray-800 text-gray-200 rounded-tl-none"
-                }`}
+                className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.isMe
+                  ? "bg-blue-600 text-white rounded-tr-none"
+                  : "bg-gray-800 text-gray-200 rounded-tl-none"
+                  }`}
               >
                 {msg.message}
               </div>

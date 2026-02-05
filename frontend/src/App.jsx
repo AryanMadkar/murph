@@ -13,6 +13,8 @@ import Explore from "./pages/Explore";
 import MySessions from "./pages/MySessions";
 import VirtualTeacher from "./pages/VirtualTeacher";
 import DashboardLayout from "./components/DashboardLayout";
+import TeacherLayout from "./components/TeacherLayout";
+import TeacherUpload from "./pages/TeacherUpload";
 
 function App() {
   return (
@@ -33,7 +35,12 @@ function App() {
           <Route path="/virtual-teacher" element={<VirtualTeacher />} />
         </Route>
 
-        <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+        {/* Teacher Dashboard & Pages (with persistent sidebar) */}
+        <Route element={<TeacherLayout />}>
+          <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+          <Route path="/teacher/upload" element={<TeacherUpload />} />
+          <Route path="/teacher/wallet" element={<Wallet />} />
+        </Route>
 
         {/* Video Call Route (Full Screen) */}
         <Route path="/video-call/:roomId" element={<VideoCall />} />

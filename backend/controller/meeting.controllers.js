@@ -446,7 +446,7 @@ const completeMeeting = async (req, res) => {
               Math.round(
                 (new Date() -
                   new Date(meeting.startedAt || meeting.createdAt)) /
-                  60000,
+                60000,
               ),
           },
           payment: {
@@ -485,7 +485,7 @@ const completeMeeting = async (req, res) => {
       attentionSession.sessionEndTime = new Date();
       attentionSession.sessionDuration = Math.floor(
         (attentionSession.sessionEndTime - attentionSession.sessionStartTime) /
-          1000,
+        1000,
       );
 
       // Populate metrics using the shared calculator
@@ -950,6 +950,34 @@ const saveNotes = async (req, res) => {
   }
 };
 
+// Get session notes and transcription
+const getSessionNotes = async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+    const session = await Session.findOne({ meetingId });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session notes not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      transcription: session.transcription,
+      notes: session.notes,
+      audio_url: session.audio_url,
+    });
+  } catch (error) {
+    console.error("Get session notes error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   requestMeeting,
   getPendingMeetings,
@@ -966,4 +994,5 @@ module.exports = {
   uploadSessionAudio,
   saveNotes,
   testCompleteTeacherSession,
+  getSessionNotes,
 };

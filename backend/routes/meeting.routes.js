@@ -60,4 +60,7 @@ router.post("/save-notes", saveNotes);
 // ⭐ TEST: Complete latest session for a teacher (for testing payment)
 router.post("/test-complete", testCompleteTeacherSession);
 
+// Get session notes and transcription
+router.get("/session-notes/:meetingId", getSessionNotes);
+
 module.exports = router;
