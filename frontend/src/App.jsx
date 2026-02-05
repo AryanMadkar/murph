@@ -11,6 +11,7 @@ import SessionReview from "./pages/SessionReview";
 import Wallet from "./pages/Wallet";
 import Explore from "./pages/Explore";
 import MySessions from "./pages/MySessions";
+import VirtualTeacher from "./pages/VirtualTeacher";
 import DashboardLayout from "./components/DashboardLayout";
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
           <Route path="/explore" element={<Explore />} />
           <Route path="/my-sessions" element={<MySessions />} />
           <Route path="/wallet" element={<Wallet />} />
+          <Route path="/virtual-teacher" element={<VirtualTeacher />} />
         </Route>
 
         <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
