@@ -6,6 +6,7 @@ const {
   endAttentionSession,
   getAttentionSession,
   getLiveAttentionStatus,
+  getStudentAttentionHistory,
 } = require("../controller/Attention.controllers");
 
 router.post("/start", startAttentionSession);

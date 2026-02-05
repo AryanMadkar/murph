@@ -36,6 +36,7 @@ app.use("/api/session", sessionRoutes);
 app.use("/api/videos", videoRoutes);
 app.use("/api/attention", require("./routes/Attention.routes"));
 app.use("/api/insights", require("./routes/insights.routes"));
+app.use("/api/virtual-teacher", require("./routes/virtualTeacher.routes"));
 
 app.get("/api/health", (req, res) => {
   res.json({

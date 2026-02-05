@@ -16,6 +16,7 @@ const {
   uploadSessionAudio,
   saveNotes,
   testCompleteTeacherSession,
+  getSessionNotes,
 } = require("../controller/meeting.controllers");
 
 // Get all teachers (for student dashboard)
